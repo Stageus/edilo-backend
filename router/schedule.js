@@ -49,4 +49,45 @@ router.post("/", authVerify, async (req, res) => {
     const scheduleDate = req.body.scheduleDate
 })
 
+// 일정 삭제 api 일정 블록도 함께 삭제
+router.delete("/", authVerify, async (req, res) => {
+
+    const scheduleIndex = req.body.scheduleIndex
+
+    const result = {
+        "success": false,
+        "message": ""
+    }
+
+    if (scheduleIndex == undefined) {   // 스케줄이 존재하지 않을 때 예외처리
+        result.message = "일정이 존재하지 않습니다."
+        return res.send(result)
+    }
+
+    const pgClient = new PgClient(pgClientOption)
+
+    try {
+        await pgClient.connect()
+        
+        const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1;' 
+        // sql2 = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
+        const values = [scheduleIndex]
+
+        await pgClient.query(sql, values)
+
+        result.success = true
+        result.message = "일정 삭제완료"
+        res.send(result)
+    } catch(err) { 
+        result.message = err.message
+        res.send(result)
+    }
+})
+
+// 일정 목록 불러오기 api
+router.get("/all", authVerify, async (req, res) => {
+
+
+})
+
 module.exports = router
