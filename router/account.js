@@ -1,13 +1,15 @@
 const router = require("express").Router()
 const {Client} = require("pg")
-const pgConn = require("../config/pgConn.js")
+const pgClient = require("../config/pgClient.js")
+const authVerify = require("../module/verify")
+const jwt = require("jsonwebtoken")
 
 router.post("/login", async(req, res) => {  //로그인
     const idValue = req.body.id
     const pwValue = req.body.pw
     const loginSql = "SELECT * FROM eodilo.account WHERE userId=$1 AND userPw=$2"
     const values = [idValue, pwValue]
-    const client = new Client(pgConn)
+    const client = new Client(pgClient)
 
     const result = {
         "success": false,
@@ -27,6 +29,21 @@ router.post("/login", async(req, res) => {  //로그인
         if(row.length != 0) {
             result.success = true
         }
+        const jwtToken = jwt.sign({
+            "userIndex": row.userIndex,
+            "userId": row.userId,
+            "userEmail": row.userEmail,
+            "userNickname": row.userNickname,
+            "userPw": row.userPw,
+            "userName": row.userName,
+            "userProfileImgUrl": row.userProfileImgUrl
+        },
+        process.env.jwtSecretKey,
+        {
+            "expiresIn": "24h",
+            "issuer": process.env.jwtIssuer
+        })
+        res.cookie("token", jwtToken)
         res.send(result)
     } catch(err) {
         result.message = err.message
@@ -42,7 +59,7 @@ router.post("/", async (req, res) => {  //회원가입
     const nicknameValue = req.body.nicknameValue
     const signupSql = "INSERT INTO eodilo.account (userEmail, userId, userPw, userName, userNickname) VALUES($1, $2, $3, $4, $5)"
     const values = [emailValue, idValue, pwValue, nameValue, nicknameValue]
-    const client = new Client(pgConn)
+    const client = new Client(pgClient)
 
     const result = {
         "success": false,
@@ -72,7 +89,7 @@ router.post("/nickname/confirm", async (req, res) => {  //닉네임 중복확인
     const nicknameValue = req.body.nicknameValue
     const nicknameCheckSql = "SELECT * FROM eodilo.account WHERE userNickname=$1"
     const values = [nicknameValue]
-    const client = new Client(pgConn)
+    const client = new Client(pgClient)
 
     const result = {
         "success": false,
@@ -103,7 +120,7 @@ router.post("/id/confirm", async (req, res) => {  //아이디 중복확인
     const idValue = req.body.idValue
     const idCheckSql = "SELECT * FROM eodilo.account WHERE userId=$1"
     const values = [idValue]
-    const client = new Client(pgConn)
+    const client = new Client(pgClient)
 
     const result = {
         "success": false,
@@ -133,8 +150,79 @@ router.post("/id/confirm", async (req, res) => {  //아이디 중복확인
 router.put("/nickname", async (req, res) => {   //닉네임 수정
     const userIndexValue = req.body.userIndexValue
     const nicknameValue = req.body.nicknameValue
-    const changeNicknameSql = "SELECT * FROM eodilo.account WHERE userId=$1"
-    const values = [userIndexValue, nicknameValue]
-    const client = new Client(pgConn)
+    const changeNicknameSql = "UPDATE eodilo.account SET userNickname=$1 WHERE userIndex=$2"
+    const values = [nicknameValue, userIndexValue]
+    let client
+
+    const result = {
+        "success": false,
+        "message": ""
+    }
+
+    try {
+        if(userIndexValue == undefined || nicknameValue == undefined 
+            || nicknameValue.length > 20 || nicknameValue.length == 0) {
+            throw new Error({"message": "부적합한 인풋 값"})
+        }
+        client = new Client(pgClient)
+        await client.connect()
+        await client.query(changeNicknameSql, values)
+        result.success = true
+    } catch(err) {
+        result.message = err.message
+    }
+
+    if(client) client.end()
+    res.send(result)
 })
+
+router.put("/nickname", async (req, res) => {   //비밀번호 수정
+    const userIndexValue = req.body.userIndexValue
+    const pwValue = req.body.pwValue
+    const pwCheckValue = req.body.pwCheckValue
+    const changePwSql = "UPDATE eodilo.account SET userPw=$1 WHERE userIndex=$2"
+    const values = [pwValue, userIndexValue]
+    let client
+
+    const result = {
+        "success": false,
+        "message": ""
+    }
+
+    try {
+        if(pwValue != pwCheckValue) {
+            throw new Error({"message": "비밀번호와 비밀번호 확인이 일치하지 않음"})
+        }
+        else if(userIndexValue == undefined || pwValue == undefined
+            || pwValue.length > 20 || pwValue.length == 0) {
+            throw new Error({"message": "부적합한 인풋 값"})
+        }
+        client = new Client(pgClient)
+        await client.connect()
+        await client.query(changePwSql, values)
+        result.success = true
+    } catch(err) {
+        result.message = err.message
+    }
+    
+    if(client) client.end()
+    res.send(result)
+})
+
+router.put("/profileImg", async (req, res) => { //프로필 사진 수정
+
+})
+
+router.get("/", authVerify, async (req, res) => {   //프로필 정보
+    
+})
+
+router.get("/logout", async (req, res) => { //로그아웃
+
+})
+
+router.delete("/", async (req, res) => {    //회원 탈퇴
+
+})
+
 module.exports = router
