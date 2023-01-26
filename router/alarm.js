@@ -14,12 +14,14 @@ router.get("/all", authVerify, async (req, res) => {
         "data": []
     }
 
-    const pgClient = new PgClient(pgClientOption)
+    const pgClient = null
 
     try {
+
+        pgClient = new PgClient(pgClientOption)
+
         await pgClient.connect()
-        
- 
+    
         const sql = 'SELECT * FROM eodilo.alarm WHERE userNickname=$1;' // 해당 닉네임의 알람 전부 select
         const values = [userNickname]
 
@@ -50,7 +52,7 @@ router.delete("/", authVerify, async (req, res) => {
         "message": null
     }
 
-    const pgClient = new PgClient(pgClientOption) // 이것도 처음엔 null로 선언 해놓고 try안에다가 다 넣어두는거지
+    const pgClient = null
     // 무조건 에러나지 않는 코드만 try 밖에 두고 나머지는 다 try 안으로
     try {
         // 예외처리
@@ -59,6 +61,8 @@ router.delete("/", authVerify, async (req, res) => {
                 "message": "해당 알림이 없습니다"
             })
         }
+
+        pgClient = new PgClient(pgClientOption)
 
         await pgClient.connect()
  
@@ -73,6 +77,7 @@ router.delete("/", authVerify, async (req, res) => {
         result.message = err.message
     }
     if (pgClient) pgClient.end()    // db연결 안됐는데 종료해버릴 수도 있으니까 narrowing?
+                                    // 다른 api들은 try catch안에서 에러나는 부분은 다 db 연결된 후에 에러가 나서 괜찮을 듯
     res.send(result)
 })
 
@@ -86,9 +91,12 @@ router.delete("/all", authVerify, async (req, res) => {
         "message": null
     }
 
-    const pgClient = new PgClient(pgClientOption)
+    const pgClient = null
 
     try {
+
+        pgClient = new PgClient(pgClientOption)
+
         await pgClient.connect() 
         
  
@@ -99,11 +107,11 @@ router.delete("/all", authVerify, async (req, res) => {
 
         result.success = true
         result.message = "삭제완료"
-        res.send(result)
     } catch(err) { 
         result.message = err.message
-        res.send(result)
     }
+    pgClient.end()
+    res.send(result)
 })
 
 module.exports = router
