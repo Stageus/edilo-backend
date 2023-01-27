@@ -3,6 +3,7 @@ const {Client} = require("pg")
 const pgClient = require("../config/pgClient.js")
 const authVerify = require("../module/verify")
 const jwt = require("jsonwebtoken")
+const updateProfileImg = require("../module/updateProfileImg.js")
 
 router.post("/login", async(req, res) => {  //로그인
     const idValue = req.body.id
@@ -209,7 +210,7 @@ router.put("/nickname", async (req, res) => {   //비밀번호 수정
     res.send(result)
 })
 
-router.put("/profileImg", async (req, res) => { //프로필 사진 수정
+router.put("/profileImg", updateProfileImg.single("imgValue"), async (req, res) => { //프로필 사진 수정
 
 })
 
