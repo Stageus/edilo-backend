@@ -15,9 +15,12 @@ router.get("/", authVerify, async (req, res) => {
         "scheduleBlockData": []
     }
 
-    const pgClient = new PgClient(pgClientOption)
+    const pgClient = null
 
     try {
+
+        pgClient = new PgClient(pgClientOption)
+
         await pgClient.connect()  
         
         const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1;' // 해당 스케줄 가져오기
@@ -35,11 +38,11 @@ router.get("/", authVerify, async (req, res) => {
             result.message = '일정이 존재하지 않습니다.'
         }
         result.success = true
-        res.send(result)
     } catch(err) { 
         result.message = err.message
-        res.send(result)
     }
+    pgClient.end()
+    res.send(result)
 })
 
 // 일정 업로드 api 
@@ -64,9 +67,12 @@ router.delete("/", authVerify, async (req, res) => {
         return res.send(result)
     }
 
-    const pgClient = new PgClient(pgClientOption)
+    const pgClient = null
 
     try {
+
+        pgClient = new PgClient(pgClientOption)
+
         await pgClient.connect()
         
         const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1;' 
@@ -77,11 +83,11 @@ router.delete("/", authVerify, async (req, res) => {
 
         result.success = true
         result.message = "일정 삭제완료"
-        res.send(result)
     } catch(err) { 
         result.message = err.message
-        res.send(result)
     }
+    pgClient.end()
+    res.send(result)
 })
 
 // 일정 목록 불러오기 api
