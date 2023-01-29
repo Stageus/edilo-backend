@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken")
 const checkProfileImg = require("../module/checkProfileImg.js")
 const updateProfileImg = require("../module/updateProfileImg.js")
 
-router.post("/login", async(req, res) => {  //로그인
+router.post("/login", async (req, res) => {  //로그인
     const idValue = req.body.idValue
     const pwValue = req.body.pwValue
     const loginSql = "SELECT * FROM eodilo.account WHERE userId=$1 AND userPw=$2"
