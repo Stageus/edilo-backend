@@ -46,6 +46,7 @@ router.get("/all", authVerify, async (req, res) => {
 router.delete("/", authVerify, async (req, res) => {  
 
     const alarmIndex = req.query.alarmIndex
+    const userNickname = req.decoded.userNickname
 
     const result = {
         "success": false,
@@ -66,8 +67,8 @@ router.delete("/", authVerify, async (req, res) => {
 
         await pgClient.connect()
  
-        const sql = 'DELETE FROM eodilo.alarm WHERE alarmIndex=$1;' // 해당 닉네임의 알람 전부 select
-        const values = [alarmIndex]
+        const sql = 'DELETE FROM eodilo.alarm WHERE alarmIndex=$1 AND userNickname=$2;'
+        const values = [alarmIndex, userNickname]
 
         await pgClient.query(sql, values) 
 
