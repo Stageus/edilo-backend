@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { PgClient } = require("pg")  
+const { Client } = require("pg")  
 const pgClientOption = require("../config/pgClient")
 const authVerify = require("../module/verify")
 
@@ -19,7 +19,7 @@ router.get("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()  
         
@@ -70,7 +70,7 @@ router.delete("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         

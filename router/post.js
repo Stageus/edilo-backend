@@ -1,13 +1,13 @@
 const router = require("express").Router()
-const { PgClient } = require("pg")  
-const pgClientOption = require("../config/pgClient")
+const { Client } = require("pg")
+const pgClientOption = require("../config/pgClient.js")
 // const imageUploader = require('../module/uploadPostImg')
 const authVerify = require("../module/verify")
 
 const elastic = require("elasticsearch")
 
 // 전체 게시글 불러오기 api 
-router.get("/all", authVerify, async (req, res) => {  
+router.get("/all", async (req, res) => {  
 
     const postCategory = req.body.postCategory
 
@@ -17,12 +17,11 @@ router.get("/all", authVerify, async (req, res) => {
         "data": []
     }
 
-    const pgClient = null
+    let pgClient = null
 
     try {
-
-        pgClient = new PgClient(pgClientOption)
-        
+    
+        pgClient = new Client(pgClientOption)
         await pgClient.connect() // await 붙여주는
         
         if (postCategory == null || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
@@ -45,10 +44,11 @@ router.get("/all", authVerify, async (req, res) => {
             result.message = '게시글이 존재하지 않습니다.'
         }
         result.success = true
+        pgClient.end()
+
     } catch(err) { 
         result.message = err.message
     }
-    pgClient.end()
     res.send(result)
 })
 
@@ -68,7 +68,7 @@ router.get("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect() 
         
@@ -147,7 +147,7 @@ router.post("/", authVerify, async (req, res) => {
             })
         }
         
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -195,7 +195,7 @@ router.put("/", authVerify, async (req, res) => {
             })
         }
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -233,7 +233,7 @@ router.delete("/", authVerify, async (req, res) => {
             })
         }
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -266,7 +266,7 @@ router.post("/like", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -299,7 +299,7 @@ router.post("/scrap", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -345,7 +345,7 @@ router.post("/comment", authVerify, async (req, res) => {
             })
         }  
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
         
         await pgClient.connect()
         
@@ -383,7 +383,7 @@ router.delete("/comment", authVerify, async (req, res) => {
             })
         }
         
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
