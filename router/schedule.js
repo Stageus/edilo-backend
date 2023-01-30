@@ -23,9 +23,8 @@ router.get("/", authVerify, async (req, res) => {
 
         await pgClient.connect()  
         
-        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1;' // 해당 스케줄 가져오기
-        // sql2 = 'SELECT * FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;'
-        const values = [scheduleIndex]
+        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1 UNION ALL SELECT * FROM eodilo.scheduleeBlock WHERE scheduleIndex=$2;' // 해당 스케줄 가져오기
+        const values = [scheduleIndex, scheduleIndex]
 
         const data = await pgClient.query(sql, values)
         const row = data.rows
@@ -76,6 +75,7 @@ router.delete("/", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1;' 
+   
         // sql2 = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
         const values = [scheduleIndex]
 

@@ -99,7 +99,6 @@ router.delete("/all", authVerify, async (req, res) => {
 
         await pgClient.connect() 
         
- 
         const sql = 'DELETE FROM eodilo.alarm WHERE userNickname=$1;'
         const values = [userNickname]
 

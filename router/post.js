@@ -1,7 +1,7 @@
 const router = require("express").Router()
 const { PgClient } = require("pg")  
 const pgClientOption = require("../config/pgClient")
-const upload = require('../module/multer')
+// const imageUploader = require('../module/uploadPostImg')
 const authVerify = require("../module/verify")
 
 const elastic = require("elasticsearch")
@@ -72,7 +72,7 @@ router.get("/", authVerify, async (req, res) => {
 
         await pgClient.connect() 
         
-        const sql = 'SELECT * FROM eodilo.post WHERE postIndex=$1 UNION SELECT * FROM eodilo.comment WHERE postIndex=$2;'    
+        const sql = 'SELECT * FROM eodilo.post WHERE postIndex=$1 UNION ALL SELECT * FROM eodilo.comment WHERE postIndex=$2;'    
 
         const values = [postIndex, postIndex]
 
@@ -93,8 +93,8 @@ router.get("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 게시글 작성 api 
-router.post("/", authVerify, upload.single('image'), async (req, res) => {        
+// 게시글 작성 api 이미지 업로드
+router.post("/", authVerify, async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
     const postTitle = req.body.postTitle
@@ -330,7 +330,6 @@ router.post("/comment", authVerify, async (req, res) => {
         "message": "",
     }
 
-
     const pgClient = null
 
     try {
@@ -389,7 +388,7 @@ router.delete("/comment", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const selectSql = 'SELECT userNickname FROM eodilo.comment WHERE commentIndex=$1;' // 댓글 작성자 확인
-        const values = [commentIndex]
+        const selectValues = [commentIndex]
         
         const userNicknameData = await pgClient.query(selectSql, values)
         const row = userNicknameData.rows
@@ -406,7 +405,7 @@ router.delete("/comment", authVerify, async (req, res) => {
 
         result.success = true
         result.message = "댓글 삭제완료"
-    } catch(err) { // 아 어차피 캐로 다 들어가니까 그냥 쭉 쓰는거네 근데 에러부분 뜨는 방식을 잘 모르겠네
+    } catch(err) { 
         result.message = err
     }
     if (pgClient) pgClient.end()
