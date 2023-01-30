@@ -32,7 +32,6 @@ router.get("/", authVerify, async (req, res) => {
 
         if (row.length > 0) {
             result.data.push(row)
-            await redisClient.disconnect()
         } else {
             result.message = '일정이 존재하지 않습니다.'
         }
@@ -95,7 +94,39 @@ router.delete("/", authVerify, async (req, res) => {
 router.get("/all", authVerify, async (req, res) => {
 
     const userId = req.decoded.userId
-    
+
+    const result = {
+        "success": false,
+        "message": null,
+        "data": []
+    }
+
+    const pgClient = null
+
+    try {
+
+        pgClient = new Client(pgClientOption)
+
+        await pgClient.connect()
+
+        const sql = 'SELECT cityName, scheduleName, scheduleDate, scheduleIndex FROM eodilo.schedule WHERE userId=$1'
+        // 이럴거면 다 가져올까
+        const values = [userId]
+
+        const data = await pgClient.query(sql, values)
+        const row = data.rows
+
+        if (row.length > 0) {
+            result.data.push(row)
+        } else {
+            result.message = '일정이 존재하지 않습니다.'
+        }
+        result.success = true
+    } catch(err) {
+        result.message = err.message
+    }
+    pgClient.end()
+    res.send(result)
 })
 
 module.exports = router

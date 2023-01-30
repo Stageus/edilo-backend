@@ -39,7 +39,6 @@ router.get("/all", authVerify, async (req, res) => {
         
         if (row.length > 0) {
             result.data.push(row)
-            await redisClient.disconnect()
         } else {
             result.message = '게시글이 존재하지 않습니다.'
         }
@@ -78,7 +77,6 @@ router.get("/my/all", authVerify, async (req, res) => {
         
         if (row.length > 0) {
             result.data.push(row)
-            await redisClient.disconnect()
         } else {
             result.message = '게시글이 존재하지 않습니다.'
         }
