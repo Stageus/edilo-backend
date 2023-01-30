@@ -6,8 +6,8 @@ const authVerify = require("../module/verify")
 
 const elastic = require("elasticsearch")
 
-// 전체 게시글 불러오기 api 
-router.get("/all", async (req, res) => {  
+// 전체 게시글 불러오기 api > database \"eodilodb\" does not exist
+router.get("/all", authVerify, async (req, res) => {  
 
     const postCategory = req.body.postCategory
 
@@ -36,7 +36,7 @@ router.get("/all", async (req, res) => {
             const data = await pgClient.query(sql, values)
             const row = data.rows
         } // data랑 row부분 중복 코드로 빼려고 했는데 values를 넣는 부분이 달라서 빼지 못함 팀장님한테 한번 여쭤보자.
-
+        
         if (row.length > 0) {
             result.data.push(row)
             await redisClient.disconnect()
@@ -44,11 +44,49 @@ router.get("/all", async (req, res) => {
             result.message = '게시글이 존재하지 않습니다.'
         }
         result.success = true
-        pgClient.end()
 
     } catch(err) { 
         result.message = err.message
     }
+    pgClient.end()
+    res.send(result)
+})
+
+// 내 게시글 불러오기 
+router.get("/my/all", authVerify, async (req, res) => {  
+
+    const userIndex = req.decoded.userIndex
+
+    const result = {
+        "success": false,
+        "message": null,
+        "data": []
+    }
+
+    let pgClient = null
+
+    try {
+    
+        pgClient = new Client(pgClientOption)
+        await pgClient.connect()
+        
+        const sql = 'SELECT * FROM eodilo.post WHERE userIndex=$1;' // 해당 유저 게시글 select
+        const values = [userIndex]
+
+        const data = await pgClient.query(sql, values)
+        const row = data.rows
+        
+        if (row.length > 0) {
+            result.data.push(row)
+            await redisClient.disconnect()
+        } else {
+            result.message = '게시글이 존재하지 않습니다.'
+        }
+        result.success = true
+    } catch(err) { 
+        result.message = err.message
+    }
+    pgClient.end()
     res.send(result)
 })
 
