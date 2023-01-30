@@ -251,10 +251,11 @@ router.put("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 게시글 삭제 api 해당 댓글도 함께 삭제
+// 게시글 삭제 api 해당 댓글도 함께 삭제, 이미지 삭제
 router.delete("/", authVerify, async (req, res) => {
 
     const postIndex = req.body.postIndex
+    const userIndex = req.decoded.userIndex
 
     const result = {
         "success": false,
@@ -275,8 +276,8 @@ router.delete("/", authVerify, async (req, res) => {
 
         await pgClient.connect()
         
-        const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1;' 
-        const values = [postIndex]
+        const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
+        const values = [postIndex, userIndex]
 
         await pgClient.query(sql, values)
 
@@ -424,20 +425,9 @@ router.delete("/comment", authVerify, async (req, res) => {
         pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
-        
-        const selectSql = 'SELECT userNickname FROM eodilo.comment WHERE commentIndex=$1;' // 댓글 작성자 확인
-        const selectValues = [commentIndex]
-        
-        const userNicknameData = await pgClient.query(selectSql, values)
-        const row = userNicknameData.rows
 
-        if (row =! userNickname) {  // 댓글 작성자와 해당 유저가 같지 않을 때
-            result.message = "삭제 권한이 없습니다."
-            return res.send(result)
-        }
-
-        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1;' 
-        const values = [commentIndex]
+        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1 AND userNickname=$2' // 해당 닉네임만 삭제할 수 있게
+        const values = [commentIndex, userNickname]
 
         await pgClient.query(sql, values)
 
