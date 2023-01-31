@@ -1,12 +1,12 @@
 const router = require("express").Router()
-const { PgClient } = require("pg")  
-const pgClientOption = require("../config/pgClient")
-const upload = require('../module/multer')
+const { Client } = require("pg")
+const pgClientOption = require("../config/pgClient.js")
+// const imageUploader = require('../module/uploadPostImg')
 const authVerify = require("../module/verify")
 
 const elastic = require("elasticsearch")
 
-// 전체 게시글 불러오기 api 
+// 전체 게시글 불러오기 api > database \"eodilodb\" does not exist
 router.get("/all", authVerify, async (req, res) => {  
 
     const postCategory = req.body.postCategory
@@ -17,12 +17,11 @@ router.get("/all", authVerify, async (req, res) => {
         "data": []
     }
 
-    const pgClient = null
+    let pgClient = null
 
     try {
-
-        pgClient = new PgClient(pgClientOption)
-        
+    
+        pgClient = new Client(pgClientOption)
         await pgClient.connect() // await 붙여주는
         
         if (postCategory == null || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
@@ -37,10 +36,47 @@ router.get("/all", authVerify, async (req, res) => {
             const data = await pgClient.query(sql, values)
             const row = data.rows
         } // data랑 row부분 중복 코드로 빼려고 했는데 values를 넣는 부분이 달라서 빼지 못함 팀장님한테 한번 여쭤보자.
-
+        
         if (row.length > 0) {
             result.data.push(row)
-            await redisClient.disconnect()
+        } else {
+            result.message = '게시글이 존재하지 않습니다.'
+        }
+        result.success = true
+
+    } catch(err) { 
+        result.message = err.message
+    }
+    pgClient.end()
+    res.send(result)
+})
+
+// 내 게시글 불러오기 
+router.get("/my/all", authVerify, async (req, res) => {  
+
+    const userIndex = req.decoded.userIndex
+
+    const result = {
+        "success": false,
+        "message": null,
+        "data": []
+    }
+
+    let pgClient = null
+
+    try {
+    
+        pgClient = new Client(pgClientOption)
+        await pgClient.connect()
+        
+        const sql = 'SELECT * FROM eodilo.post WHERE userIndex=$1;' // 해당 유저 게시글 select
+        const values = [userIndex]
+
+        const data = await pgClient.query(sql, values)
+        const row = data.rows
+        
+        if (row.length > 0) {
+            result.data.push(row)
         } else {
             result.message = '게시글이 존재하지 않습니다.'
         }
@@ -68,11 +104,11 @@ router.get("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect() 
         
-        const sql = 'SELECT * FROM eodilo.post WHERE postIndex=$1 UNION SELECT * FROM eodilo.comment WHERE postIndex=$2;'    
+        const sql = 'SELECT * FROM eodilo.post WHERE postIndex=$1 UNION ALL SELECT * FROM eodilo.comment WHERE postIndex=$2;'    
 
         const values = [postIndex, postIndex]
 
@@ -93,8 +129,8 @@ router.get("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 게시글 작성 api 
-router.post("/", authVerify, upload.single('image'), async (req, res) => {        
+// 게시글 작성 api 이미지 업로드
+router.post("/", authVerify, async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
     const postTitle = req.body.postTitle
@@ -147,7 +183,7 @@ router.post("/", authVerify, upload.single('image'), async (req, res) => {
             })
         }
         
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -195,7 +231,7 @@ router.put("/", authVerify, async (req, res) => {
             })
         }
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -213,10 +249,11 @@ router.put("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 게시글 삭제 api 해당 댓글도 함께 삭제
+// 게시글 삭제 api 해당 댓글도 함께 삭제, 이미지 삭제
 router.delete("/", authVerify, async (req, res) => {
 
     const postIndex = req.body.postIndex
+    const userIndex = req.decoded.userIndex
 
     const result = {
         "success": false,
@@ -233,12 +270,12 @@ router.delete("/", authVerify, async (req, res) => {
             })
         }
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
-        const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1;' 
-        const values = [postIndex]
+        const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
+        const values = [postIndex, userIndex]
 
         await pgClient.query(sql, values)
 
@@ -266,7 +303,7 @@ router.post("/like", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -299,7 +336,7 @@ router.post("/scrap", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
@@ -330,7 +367,6 @@ router.post("/comment", authVerify, async (req, res) => {
         "message": "",
     }
 
-
     const pgClient = null
 
     try {
@@ -346,7 +382,7 @@ router.post("/comment", authVerify, async (req, res) => {
             })
         }  
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
         
         await pgClient.connect()
         
@@ -384,29 +420,18 @@ router.delete("/comment", authVerify, async (req, res) => {
             })
         }
         
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
-        
-        const selectSql = 'SELECT userNickname FROM eodilo.comment WHERE commentIndex=$1;' // 댓글 작성자 확인
-        const values = [commentIndex]
-        
-        const userNicknameData = await pgClient.query(selectSql, values)
-        const row = userNicknameData.rows
 
-        if (row =! userNickname) {  // 댓글 작성자와 해당 유저가 같지 않을 때
-            result.message = "삭제 권한이 없습니다."
-            return res.send(result)
-        }
-
-        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1;' 
-        const values = [commentIndex]
+        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1 AND userNickname=$2' // 해당 닉네임만 삭제할 수 있게
+        const values = [commentIndex, userNickname]
 
         await pgClient.query(sql, values)
 
         result.success = true
         result.message = "댓글 삭제완료"
-    } catch(err) { // 아 어차피 캐로 다 들어가니까 그냥 쭉 쓰는거네 근데 에러부분 뜨는 방식을 잘 모르겠네
+    } catch(err) { 
         result.message = err
     }
     if (pgClient) pgClient.end()

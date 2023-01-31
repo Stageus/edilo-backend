@@ -3,7 +3,7 @@ const pgClientOption = {
     password: process.env.pgPassword,
     host: process.env.pgHost,
     database: process.env.pgDb,
-    port: pgPort
+    port: process.env.pgPort
 }
 
 module.exports = pgClientOption

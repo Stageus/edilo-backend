@@ -67,7 +67,7 @@ router.post("/", async (req, res) => {  //회원가입
         "message": ""
     }
 
-    if(emailValue.length == 0 || idValue.length > 320 || idValue.length == 0 || idValue.length > 20 
+    if(idValue == undefined || pwValue == undefined || emailValue == undefined || nameValue == undefined || emailValue.length == 0 || emailValue.length > 320 || idValue.length == 0 || idValue.length > 20 
     || pwValue.length == 0 || pwValue.length > 20 || nameValue.length == 0 || nameValue.length > 20
     || nicknameValue.length == 0 || nicknameValue.length > 20) {
         result.message = "입력한 회원정보의 길이 부적합"

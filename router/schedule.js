@@ -1,5 +1,5 @@
 const router = require("express").Router()
-const { PgClient } = require("pg")  
+const { Client } = require("pg")  
 const pgClientOption = require("../config/pgClient")
 const authVerify = require("../module/verify")
 
@@ -19,13 +19,12 @@ router.get("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()  
         
-        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1;' // 해당 스케줄 가져오기
-        // sql2 = 'SELECT * FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;'
-        const values = [scheduleIndex]
+        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1 UNION ALL SELECT * FROM eodilo.scheduleeBlock WHERE scheduleIndex=$2;' // 해당 스케줄 가져오기
+        const values = [scheduleIndex, scheduleIndex]
 
         const data = await pgClient.query(sql, values)
         const row = data.rows
@@ -33,7 +32,6 @@ router.get("/", authVerify, async (req, res) => {
 
         if (row.length > 0) {
             result.data.push(row)
-            await redisClient.disconnect()
         } else {
             result.message = '일정이 존재하지 않습니다.'
         }
@@ -56,6 +54,7 @@ router.post("/", authVerify, async (req, res) => {
 router.delete("/", authVerify, async (req, res) => {
 
     const scheduleIndex = req.body.scheduleIndex
+    const userId = req.decoded.userId
 
     const result = {
         "success": false,
@@ -71,13 +70,14 @@ router.delete("/", authVerify, async (req, res) => {
 
     try {
 
-        pgClient = new PgClient(pgClientOption)
+        pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
-        const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1;' 
+        const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1 AND userId=$2;' 
+   
         // sql2 = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
-        const values = [scheduleIndex]
+        const values = [scheduleIndex, userId]
 
         await pgClient.query(sql, values)
 
@@ -90,10 +90,43 @@ router.delete("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 일정 목록 불러오기 api
+// 일정 목록 불러오기 api > 마이페이지에서 내 일정 수, 헤더에서 내 일정 리스트
 router.get("/all", authVerify, async (req, res) => {
 
+    const userId = req.decoded.userId
 
+    const result = {
+        "success": false,
+        "message": null,
+        "data": []
+    }
+
+    const pgClient = null
+
+    try {
+
+        pgClient = new Client(pgClientOption)
+
+        await pgClient.connect()
+
+        const sql = 'SELECT cityName, scheduleName, scheduleDate, scheduleIndex FROM eodilo.schedule WHERE userId=$1'
+        // 이럴거면 다 가져올까
+        const values = [userId]
+
+        const data = await pgClient.query(sql, values)
+        const row = data.rows
+
+        if (row.length > 0) {
+            result.data.push(row)
+        } else {
+            result.message = '일정이 존재하지 않습니다.'
+        }
+        result.success = true
+    } catch(err) {
+        result.message = err.message
+    }
+    pgClient.end()
+    res.send(result)
 })
 
 module.exports = router
