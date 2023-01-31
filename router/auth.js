@@ -30,7 +30,7 @@ router.post("/email/signUp", async (req, res) => {  //이메일 인증번호 발
         const authNum = await bcrypt.hash(randNum, 10)
         res.cookie("authNum", authNum, {maxAge: 1000*60*3})
         const mailOptions = {
-            from: "dydwns0908@naver.com",
+            from: process.env.emailAddress,
             to: userEmail,
             subject: "eodilo 이메일 인증번호입니다. 6자리 숫자를 정확히 입력해 주세요.",
             text: randNum
@@ -97,7 +97,7 @@ router.post("/email/findId", async (req, res) => {  //아이디 찾기 인증번
         const authNum = await bcrypt.hash(randNum, 10)
         res.cookie("authInfo", {"authNum": authNum, "userEmail": userEmail}, {maxAge: 1000*60*3})
         const mailOptions = {
-            from: "dydwns0908@naver.com",
+            from: process.env.emailAddress,
             to: userEmail,
             subject: "eodilo 이메일 인증번호입니다. 6자리 숫자를 정확히 입력해 주세요.",
             text: randNum
@@ -175,7 +175,7 @@ router.post("/email/findPw", async (req, res) => {  //비밀번호 찾기 인증
         const authNum = await bcrypt.hash(randNum, 10)
         res.cookie("authNum", authNum, {maxAge: 1000*60*3})
         const mailOptions = {
-            from: "dydwns0908@naver.com",
+            from: process.env.emailAddress,
             to: userEmail,
             subject: "eodilo 이메일 인증번호입니다. 6자리 숫자를 정확히 입력해 주세요.",
             text: randNum

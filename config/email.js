@@ -3,8 +3,8 @@ const nodemailer = require("nodemailer")
 const smtpTransport = nodemailer.createTransport({
     service: "Naver",
     auth: {
-        user: "dydwns0908@naver.com",
-        pass: "ghddydwns090800"
+        user: process.env.emailAddress,
+        pass: process.env.emailPassword
     },
     tls: {
         rejectUnauthorized: false
