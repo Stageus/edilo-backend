@@ -2,7 +2,7 @@ const router = require("express").Router()
 const { Client } = require("pg")  
 const pgClientOption = require("../config/pgClient")
 const authVerify = require("../module/verify")
-const weather = require("../pm2/weather")
+const weatherApi = require("../pm2/weather")
 
 // 일정 불러오기 api > 날씨 api 사용해서 날짜 정보 주기
 router.get("/", authVerify, async (req, res) => {
@@ -13,7 +13,8 @@ router.get("/", authVerify, async (req, res) => {
         "success": false,
         "message": null,
         "scheduleData": [],
-        "scheduleBlockData": []
+        "scheduleBlockData": [],
+        "weatherData": null
     }
 
     const pgClient = null
@@ -30,8 +31,13 @@ router.get("/", authVerify, async (req, res) => {
         const data = await pgClient.query(sql, values)
         const row = data.rows
 
+        let cityLat = row[0].cityLat
+        let cityLon = row[0].cityLon
+
         if (row.length > 0) {
-            result.data.push(row)
+            result.scheduleData.push(row[0])
+            result.scheduleBlockData.push(row[1])
+            result.weatherData = weatherApi(cityLat, cityLon)
         } else {
             result.message = '일정이 존재하지 않습니다.'
         }
