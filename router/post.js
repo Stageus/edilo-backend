@@ -1,8 +1,8 @@
 const router = require("express").Router()
 const { Client } = require("pg")
 const pgClientOption = require("../config/pgClient.js")
-// const imageUploader = require('../module/uploadPostImg')
 const authVerify = require("../module/verify")
+const imageUploader = require("../module/uploadPostImg")
 
 const elastic = require("elasticsearch")
 
@@ -130,7 +130,7 @@ router.get("/", authVerify, async (req, res) => {
 })
 
 // 게시글 작성 api 이미지 업로드
-router.post("/", authVerify, async (req, res) => {        
+router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
     const postTitle = req.body.postTitle
@@ -139,6 +139,7 @@ router.post("/", authVerify, async (req, res) => {
     const postCategory = req.body.postCategory
     const cityName = req.body.cityName
     const cityCategory = req.body.cityCategory
+    let urlArr = []
 
     const result = {
         "success": false,
@@ -183,12 +184,36 @@ router.post("/", authVerify, async (req, res) => {
             })
         }
         
+        // =================== 이미지 예외처리
+
+        if (req.files == undefined) { // 이미지 파일 없을 때 예외처리
+            throw new Error({
+                "message": "이미지를 찾을 수 없습니다."
+            })
+        }
+
+        for (let i = 0; i < req.files.length; i++) {
+            let imgType = req.files[i].mimetype.split('/')[1]
+            if (req.files[i].size > 5 * 1024 * 1024) {  // 크기 예외처리
+                throw new Error({
+                    "message": "파일의 크기가 너무 큽니다."
+                })
+            }
+            if (imgType != "jpg" && imgType != "png" && imgType != "jpeg") { // 확장자 예외처리
+                throw new Error({
+                    "message": "파일 형식이 맞지 않습니다."
+                })
+            }
+            urlArr.push(`/img/${req.files[i].location}`);
+        }
+        let jsonUrl = JSON.stringify(urlArr);
+        
         pgClient = new Client(pgClientOption)
 
         await pgClient.connect()
         
-        const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, scheduleIndex, postCategory, cityCategory, cityName) VALUES ($1, $2, $3, $4, $5, $6, $7);'
-        const values = [postWriter, postTitle, postContent, scheduleIndex, postCategory, cityCategory, cityName]
+        const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, scheduleIndex, postCategory, cityCategory, cityName, postImgUrl) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
+        const values = [postWriter, postTitle, postContent, scheduleIndex, postCategory, cityCategory, cityName, jsonUrl]
         
         await pgClient.query(sql, values)
 
@@ -275,9 +300,19 @@ router.delete("/", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
+        const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
+        const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
+        const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
+
         const values = [postIndex, userIndex]
+        const commentValues = [postIndex]
+        const likeValues = [postIndex]
+        const scrapValues = [postIndex]
 
         await pgClient.query(sql, values)
+        await pgClient.query(commentSql, commentValues)
+        await pgClient.query(likeSql, likeValues)
+        await pgClient.query(scrapSql, scrapValues)
 
         result.success = true
         result.message = "게시글 삭제완료"
@@ -308,6 +343,7 @@ router.post("/like", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const sql = 'INSERT INTO eodilo.like (postIndex, userIndex) VALUES ($1, $2);'
+        
         // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
         const values = [postIndex, userIndex]
 
@@ -341,7 +377,7 @@ router.post("/scrap", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const sql = 'INSERT INTO eodilo.scrap (postIndex, userIndex) VALUES ($1, $2);'
-        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
+    
         const values = [postIndex, userIndex]
 
         await pgClient.query(sql, values)
@@ -387,6 +423,7 @@ router.post("/comment", authVerify, async (req, res) => {
         await pgClient.connect()
         
         const sql = 'INSERT INTO eodilo.comment (commentContent, commentDate, userNickname, postIndex) VALUES ($1, $2, $3, $4);'
+        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
         const values = [commentContent, commentDate, userNickname, postIndex]
 
         await pgClient.query(sql, values)
