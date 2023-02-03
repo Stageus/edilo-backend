@@ -3,6 +3,7 @@ const pgClient = require("../config/pgClient.js")
 const {Client} = require("pg")
 const bcrypt = require("bcrypt")
 const smtpTransport = require("../config/email.js")
+const passport = require("passport")
 
 router.post("/email/signUp", async (req, res) => {  //이메일 인증번호 발송 api
     const userEmail = req.body.emailValue
@@ -211,5 +212,12 @@ router.post("/email/findPw/confirm", async (req, res) => {  //비밀번호 찾�
     }
     res.send(result)
 })
+
+router.get("/google", passport.authenticate("google", { scope: ['profile', 'email'] }))
+
+router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
+       res.redirect('/')
+    },
+) 
 
 module.exports = router
