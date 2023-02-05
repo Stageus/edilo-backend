@@ -17,18 +17,18 @@ router.get("/", authVerify, async (req, res) => {
         "weatherData": null
     }
 
-    const pgClient = null
+    const client = null
 
     try {
 
-        pgClient = new Client(pgClientOption)
+        client = new Client(pgClientOption)
 
-        await pgClient.connect()  
+        await client.connect()  
         
-        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1 UNION ALL SELECT * FROM eodilo.scheduleeBlock WHERE scheduleIndex=$2;' // 해당 스케줄 가져오기
+        const sql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1 UNION ALL SELECT * FROM eodilo.scheduleBlock WHERE scheduleIndex=$2;' // 해당 스케줄 가져오기
         const values = [scheduleIndex, scheduleIndex]
 
-        const data = await pgClient.query(sql, values)
+        const data = await client.query(sql, values)
         const row = data.rows
 
         let cityLat = row[0].cityLat
@@ -45,7 +45,7 @@ router.get("/", authVerify, async (req, res) => {
     } catch(err) { 
         result.message = err.message
     }
-    pgClient.end()
+    client.end()
     res.send(result)
 })
 
@@ -62,38 +62,34 @@ router.post("/", authVerify, async (req, res) => {
         "message": null
     }
 
-    const pgClient = null
+    const client = null
 
     try {
 
         // ==================== 빈값 예외처리
         if (scheduleName == '' || scheduleName == undefined) {
-            throw new Error({
-                "message": "일정 제목을 입력해주세요"
-            })
+            throw new Error("일정 제목을 입력해주세요")
         }
 
         // ==================== 길이 예외처리
         if (scheduleName.legnth > 20) {    // 제목 길이 예외처리
-            throw new Error({
-                "message": "제목을 100자 이하로 입력해주세요"
-            })
+            throw new Error("제목을 100자 이하로 입력해주세요")
         }
         
-        pgClient = new Client(pgClientOption)
+        client = new Client(pgClientOption)
 
-        await pgClient.connect()
+        await client.connect()
         
         const sql = 'INSERT INTO eodilo.schedule (scheduleDate, scheduleName, cityName, userId) VALUES ($1, $2, $3, $4);'
         const values = [scheduleDate, scheduleName, cityName, userId]
         
-        await pgClient.query(sql, values)
+        await client.query(sql, values)
 
         result.success = true
     } catch(err) { 
         result.message = err.message
     }
-    if (pgClient) pgClient.end()
+    if (client) client.end()
     res.send(result)
 })
 
@@ -110,38 +106,34 @@ router.put("/", authVerify, async (req, res) => {
         "message": null
     }
 
-    const pgClient = null
+    const client = null
 
     try {
 
         // ==================== 빈값 예외처리
         if (scheduleName == '' || scheduleName == undefined) {
-            throw new Error({
-                "message": "일정 제목을 입력해주세요"
-            })
+            throw new Error("일정 제목을 입력해주세요")
         }
 
         // ==================== 길이 예외처리
         if (scheduleName.legnth > 20) {    // 제목 길이 예외처리
-            throw new Error({
-                "message": "일정 제목을 20자 이하로 입력해주세요"
-            })
+            throw new Error("일정 제목을 20자 이하로 입력해주세요")
         }
         
-        pgClient = new Client(pgClientOption)
+        client = new Client(pgClientOption)
 
-        await pgClient.connect()
+        await client.connect()
         
         const sql = 'UPDATE  eodilo.schedule scheduleDate=$1, scheduleName=$2 WHERE scheduleIndex=$3;'
         const values = [scheduleDate, scheduleName, scheduleIndex]
         
-        await pgClient.query(sql, values)
+        await client.query(sql, values)
 
         result.success = true
     } catch(err) { 
         result.message = err.message
     }
-    if (pgClient) pgClient.end()
+    if (client) client.end()
     res.send(result)
 })
 
@@ -161,13 +153,13 @@ router.delete("/", authVerify, async (req, res) => {
         return res.send(result)
     }
 
-    const pgClient = null
+    const client = null
 
     try {
 
-        pgClient = new Client(pgClientOption)
+        client = new Client(pgClientOption)
 
-        await pgClient.connect()
+        await client.connect()
         
         const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1 AND userId=$2;' 
         const blockSql = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
@@ -175,15 +167,15 @@ router.delete("/", authVerify, async (req, res) => {
         const values = [scheduleIndex, userId]
         const blockValues = [scheduleIndex]
 
-        await pgClient.query(sql, values)
-        await pgClient.query(blockSql, blockValues)
+        client.query(sql, values)
+        client.query(blockSql, blockValues)
 
         result.success = true
         result.message = "일정 삭제완료"
     } catch(err) { 
         result.message = err.message
     }
-    pgClient.end()
+    client.end()
     res.send(result)
 })
 
@@ -198,19 +190,19 @@ router.get("/all", authVerify, async (req, res) => {
         "data": []
     }
 
-    const pgClient = null
+    const client = null
 
     try {
 
-        pgClient = new Client(pgClientOption)
+        client = new Client(pgClientOption)
 
-        await pgClient.connect()
+        await client.connect()
 
         const sql = 'SELECT cityName, scheduleName, scheduleDate, scheduleIndex FROM eodilo.schedule WHERE userId=$1'
         // 이럴거면 다 가져올까
         const values = [userId]
 
-        const data = await pgClient.query(sql, values)
+        const data = await client.query(sql, values)
         const row = data.rows
 
         if (row.length > 0) {
@@ -222,7 +214,7 @@ router.get("/all", authVerify, async (req, res) => {
     } catch(err) {
         result.message = err.message
     }
-    pgClient.end()
+    client.end()
     res.send(result)
 })
 
