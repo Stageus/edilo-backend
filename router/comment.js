@@ -4,12 +4,11 @@ const pgClientOption = require("../config/pgClient.js")
 const authVerify = require("../module/verify")
 
 // 댓글 작성 api
-router.post("/comment", authVerify, async (req, res) => {
+router.post("/", authVerify, async (req, res) => {
 
-    const userNickname = req.decoded.userNickname
+    const userIndex = req.decoded.userIndex
     const postIndex = req.body.postIndex
     const commentContent = req.body.commentContent
-    const commentDate = req.body.commentDate
 
     const result = {
         "success": false,
@@ -31,13 +30,14 @@ router.post("/comment", authVerify, async (req, res) => {
         
         await client.connect()
         
-        const sql = 'INSERT INTO eodilo.comment (commentContent, commentDate, userNickname, postIndex) VALUES ($1, $2, $3, $4);'
-        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
-        const values = [commentContent, commentDate, userNickname, postIndex]
+        const sql = 'INSERT INTO eodilo.comment (commentContent, userIndex, postIndex) VALUES ($1, $2, $3);'
+        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userIndex, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
+        const values = [commentContent, userIndex, postIndex]
 
         await client.query(sql, values)
 
         result.success = true
+        result.message = "댓글 작성 완료"
     } catch(err) { 
         result.message = err
     }
@@ -46,10 +46,10 @@ router.post("/comment", authVerify, async (req, res) => {
 }) 
 
 // 댓글 삭제 api
-router.delete("/comment", authVerify, async (req, res) => {
+router.delete("/", authVerify, async (req, res) => {
 
     const commentIndex = req.body.commentIndex
-    const userNickname = req.decoded.userNickname
+    const userIndex = req.decoded.userIndex
 
     const result = {
         "success": false,
@@ -68,8 +68,8 @@ router.delete("/comment", authVerify, async (req, res) => {
 
         await client.connect()
 
-        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1 AND userNickname=$2' // 해당 닉네임만 삭제할 수 있게
-        const values = [commentIndex, userNickname]
+        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1 AND userIndex=$2' // 해당 닉네임만 삭제할 수 있게
+        const values = [commentIndex, userIndex]
 
         await client.query(sql, values)
 

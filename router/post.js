@@ -9,7 +9,7 @@ const elastic = require("elasticsearch")
 // 전체 게시글 불러오기 api > database \"eodilodb\" does not exist
 router.get("/all", authVerify, async (req, res) => {  
 
-    const postCategory = req.params.postCategory
+    const postCategory = req.query.postCategory
 
     const result = {
         "success": false,
@@ -33,7 +33,6 @@ router.get("/all", authVerify, async (req, res) => {
             
             row = data.rows
         
-            console.log(row.legnth)
         } else {    // 카테고리가 존재할 때
             const sql = 'SELECT * FROM eodilo.post WHERE postCategory=$1;'
             const values = [postCategory]
@@ -106,25 +105,31 @@ router.get("/", authVerify, async (req, res) => {
         "commentData": []
     }
 
-    const client = null
+    let client = null
 
     try {
 
         client = new Client(pgClientOption)
-
+        
         await client.connect() 
         
-        const sql = 'SELECT * FROM eodilo.post WHERE postIndex=$1 UNION ALL SELECT * FROM eodilo.comment WHERE postIndex=$2;'    
+        const postSql = 'SELECT * FROM eodilo.post WHERE postIndex=$1;'    
+        const commentSql = 'SELECT * FROM eodilo.comment WHERE postIndex=$1;'
         // 코멘트 셀렉트 따로 
-
-        const values = [postIndex, postIndex]
-
-        const data = await client.query(sql, values) // 게시글 가져오기
         
-        const row = data.rows
-
-        if (row.length > 0) {
-            result.postData.push(row)
+        const values = [postIndex]
+        
+        const postData = await client.query(postSql, values) // 게시글 가져오기
+        const commentData = await client.query(commentSql, values) // 댓글 가져오기
+        
+        const postRow = postData.rows
+        const commentRow = commentData.rows
+        
+        if (postRow.length > 0 && commentRow.legnth > 0) {
+            result.postData.push(postRow)
+            result.commentData.push(commentRow)
+        } else if (postRow.length > 0){ // 댓글 없을 때
+            result.postData.push(postRow)            
         } else {
             result.message = '해당 게시글이 존재하지 않습니다.'
         }
@@ -132,7 +137,7 @@ router.get("/", authVerify, async (req, res) => {
     } catch(err) { 
         result.message = err.message
     }
-    client.end()
+    if (client) client.end()
     res.send(result)
 })
 
@@ -145,7 +150,7 @@ router.post("/", authVerify, async (req, res) => {
     const postContent = req.body.postContent
     const scheduleIndex = req.body.scheduleIndex
     const postCategory = req.body.postCategory
-    const cityName = req.body.cityName
+    const cityName = req.boIdy.cityName
     const cityCategory = req.body.cityCategory
     let urlArr = []
 
@@ -154,7 +159,7 @@ router.post("/", authVerify, async (req, res) => {
         "message": null
     }
 
-    const client = null
+    let client = null
 
     try {
 
@@ -231,7 +236,7 @@ router.put("/", authVerify, async (req, res) => {
         "message": ""
     }
 
-    const client = null
+    let client = null
 
     try {   // 관리자 페이지 같은 경우에도 throw로 받아서 예외처리
 
@@ -248,8 +253,10 @@ router.put("/", authVerify, async (req, res) => {
 
         await client.connect()
         
-        const sql = 'UPDATE eodilo.post SET postContent=$1, scheduleIndex=$2 WHERE postIndex=$3 AND userIndex=$4;'  // userindex를 넣지 않으면 다른 사람의 post를 수정 삭제 할 수 있으니까 여기다가 userindex도 넣어주자
-        const values = [postContent, scheduleIndex, postIndex, userIndex]
+        // const sql = 'UPDATE eodilo.post SET postContent=$1, scheduleIndex=$2 WHERE postIndex=$3 AND userIndex=$4;'  // userindex를 넣지 않으면 다른 사람의 post를 수정 삭제 할 수 있으니까 여기다가 userindex도 넣어주자
+        // const values = [postContent, scheduleIndex, postIndex, userIndex]
+        const sql = 'UPDATE eodilo.post SET postContent=$1 WHERE postIndex=$2 AND userIndex=$3;'  // userindex를 넣지 않으면 다른 사람의 post를 수정 삭제 할 수 있으니까 여기다가 userindex도 넣어주자
+        const values = [postContent, postIndex, userIndex]
 
         await client.query(sql, values)
         
@@ -273,35 +280,41 @@ router.delete("/", authVerify, async (req, res) => {
         "message": ""
     }
 
-    const client = null
+    let client = null
 
     try {
-
-        if (postIndex == undefined) {   // 게시글 존재하지 않을 때 예외처리
-            throw new Error("게시글이 존재하지 않습니다.")
-        }
 
         client = new Client(pgClientOption)
 
         await client.connect()
-        
-        const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
-        const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
-        const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
-        const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
 
-        const values = [postIndex, userIndex]
-        const commentValues = [postIndex]
-        const likeValues = [postIndex]
-        const scrapValues = [postIndex]
+        const postSql = 'SELECT * FROM eodilo.post WHERE postIndex=$1;'    
+        const postValues = [postIndex]
+        const postData = await client.query(postSql, postValues) // 게시글 가져오기
+        const postRow = postData.rows
 
-        client.query(sql, values)
-        client.query(commentSql, commentValues)
-        client.query(likeSql, likeValues)
-        client.query(scrapSql, scrapValues)
-
-        result.success = true
-        result.message = "게시글 삭제완료"
+        if (postRow.length > 0) {   // 게시글 존재하지 않을 때 예외처리
+            
+            const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
+            const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
+            const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
+            const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
+    
+            const values = [postIndex, userIndex]
+            const commentValues = [postIndex]
+            const likeValues = [postIndex]
+            const scrapValues = [postIndex]
+    
+            client.query(sql, values)
+            client.query(commentSql, commentValues)
+            client.query(likeSql, likeValues)
+            client.query(scrapSql, scrapValues)
+    
+            result.success = true
+            result.message = "게시글 삭제완료"
+        } else {
+            throw new Error("게시글이 존재하지 않습니다.")  // 게시글 존재하지 않을 때 예외처리
+        }
     } catch(err) { 
         result.message = err.message
     }
@@ -320,7 +333,7 @@ router.post("/like", authVerify, async (req, res) => {
         "message": ""
     }
 
-    const client = null
+    let client = null
 
     try {
 
@@ -328,10 +341,12 @@ router.post("/like", authVerify, async (req, res) => {
 
         await client.connect()
         
-        const sql = 'INSERT INTO eodilo.like (postIndex, userIndex) VALUES ($1, $2);'
+        const likeSql = 'INSERT INTO eodilo.like (postIndex, userIndex) VALUES ($1, $2);'
         
-        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
-        const values = [postIndex, userIndex]
+        // const alarmSql = 'INSERT INTO eodilo.alarm (postIndex, senderNickname, userIndex, alarmCategory) VALUES ($1, $2, $3, $4);' // 알림 sql
+        const likeValues = [postIndex, userIndex]
+        const alarmValues = [postIndex, userIndex, postUserIndex, 1]
+        // 유저 닉네임은 해당 게시글 index에서 유저 닉네임 가져와서 넣어야해 여쭤보자
 
         await client.query(sql, values)
 
@@ -354,7 +369,7 @@ router.post("/scrap", authVerify, async (req, res) => {
         "message": ""
     }
 
-    const client = null
+    let client = null
 
     try {
 
@@ -373,85 +388,6 @@ router.post("/scrap", authVerify, async (req, res) => {
         result.message = err.message
     }
     client.end()
-    res.send(result)
-})
-
-// 댓글 작성 api
-router.post("/comment", authVerify, async (req, res) => {
-
-    const userNickname = req.decoded.userNickname
-    const postIndex = req.body.postIndex
-    const commentContent = req.body.commentContent
-    const commentDate = req.body.commentDate
-
-    const result = {
-        "success": false,
-        "message": "",
-    }
-
-    const client = null
-
-    try {
-
-        if (commentContent == '' || commentContent == undefined) { // 빈값 예외처리
-            throw new Error("댓글을 작성하세요")
-        }
-        if (commentContent.length > 500) {   // 길이 예외처리
-            throw new Error("댓글을 500자 이하로 입력해주세요")
-        }  
-
-        client = new Client(pgClientOption)
-        
-        await client.connect()
-        
-        const sql = 'INSERT INTO eodilo.comment (commentContent, commentDate, userNickname, postIndex) VALUES ($1, $2, $3, $4);'
-        // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userNickname, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
-        const values = [commentContent, commentDate, userNickname, postIndex]
-
-        await client.query(sql, values)
-
-        result.success = true
-    } catch(err) { 
-        result.message = err
-    }
-    if (client) client.end()
-    res.send(result)
-}) 
-
-// 댓글 삭제 api
-router.delete("/comment", authVerify, async (req, res) => {
-
-    const commentIndex = req.body.commentIndex
-    const userNickname = req.decoded.userNickname
-
-    const result = {
-        "success": false,
-        "message": "",
-    }
-
-    const client = null
-
-    try {
-
-        if (commentIndex == undefined) { // 빈값 예외처리
-            throw new Error("댓글이 존재하지 않습니다.")
-        }
-        
-        client = new Client(pgClientOption)
-
-        await client.connect()
-
-        const sql = 'DELETE FROM eodilo.comment WHERE commentIndex=$1 AND userNickname=$2' // 해당 닉네임만 삭제할 수 있게
-        const values = [commentIndex, userNickname]
-
-        await client.query(sql, values)
-
-        result.success = true
-        result.message = "댓글 삭제완료"
-    } catch(err) { 
-        result.message = err
-    }
-    if (client) client.end()
     res.send(result)
 })
 
