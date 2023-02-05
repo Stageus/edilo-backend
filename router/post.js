@@ -142,8 +142,8 @@ router.get("/", authVerify, async (req, res) => {
 })
 
 // 게시글 작성 api 이미지 업로드
-//, imageUploader.array('image', 5)
-router.post("/", authVerify, async (req, res) => {        
+//
+router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
     const postTitle = req.body.postTitle
@@ -192,14 +192,6 @@ router.post("/", authVerify, async (req, res) => {
         }
 
         for (let i = 0; i < req.files.length; i++) {
-            let imgType = req.files[i].mimetype.split('/')[1]
-            // if (req.files[i].size > 5 * 1024 * 1024) {  // 크기 예외처리
-            //     throw new Error("파일의 크기가 너무 큽니다.")
-            // }
-            // if (imgType != "jpg" && imgType != "png" && imgType != "jpeg") { // 확장자 예외처리
-            //     throw new Error("파일 형식이 맞지 않습니다.")
-            // }
-            // 이건 multer로
             urlArr.push(`/img/${req.files[i].location}`);
         }
         let jsonUrl = JSON.stringify(urlArr);
