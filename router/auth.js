@@ -4,6 +4,9 @@ const {Client} = require("pg")
 const bcrypt = require("bcrypt")
 const smtpTransport = require("../config/email.js")
 const passport = require("passport")
+const kakao = require("../config/kakao.js")
+const axios = require('axios')
+const qs = require('qs')
 
 router.post("/email/signUp", async (req, res) => {  //이메일 인증번호 발송 api
     const userEmail = req.body.emailValue
@@ -219,5 +222,55 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
        res.redirect('/')
     },
 ) 
+
+router.get("/kakao/", (req, res) => {
+    const kakaoAuthURL = `https://kauth.kakao.com/oauth/authorize?client_id=${kakao.clientID}&redirect_uri=${kakao.redirectUri}&response_type=code&scope=profile,account_email`;
+    res.redirect(kakaoAuthURL);
+})
+
+router.get('/kakao/callback', async (req,res)=>{
+
+    let user = null
+    let token = null 
+
+    try{
+        // Authorization Server 부터 Access token 발급받기
+        token = await axios({
+            method: 'POST',
+            url: 'https://kauth.kakao.com/oauth/token',
+            headers:{
+                'content-type':'application/x-www-form-urlencoded'
+            },
+            data:qs.stringify({ 
+                grant_type: 'authorization_code', 
+                client_id:kakao.clientID,
+                client_secret:kakao.clientSecret,
+                redirectUri:kakao.redirectUri,
+                code:req.query.code,
+            })
+        })
+    } catch(err){
+        res.json(err.data);
+    }
+ 
+    try{
+         // access_token 으로 사용자 정보 요청하기
+        console.log(token);//access정보를 가지고 또 요청해야 정보를 가져올 수 있음.
+
+        user = await axios({
+            method:'get',
+            url:'https://kapi.kakao.com/v2/user/me',
+            headers:{
+                Authorization: `Bearer ${token.data.access_token}`
+            }
+        })
+    } catch(err){
+        res.json(err.data);
+    }
+    console.log(user);
+ 
+    req.session.kakao = user.data;    
+    res.send('success');
+})
 
 module.exports = router
