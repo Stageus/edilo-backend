@@ -21,7 +21,7 @@ const imageUploader = multer({
             if(!allowedExtensions.includes(extension)) {
                 return callback(new Error("적절하지 않은 확장자"))
             }
-            callback(null, `${Date.now()}_${file.originalname}`)
+            callback(null, `profileImg/${Date.now()}_${file.originalname}`)
         }
     }),
     limits: {
