@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+const router = require("express").Router()
+
+=======
 const router = require("express").Router()
 const { Client } = require("pg")  
 const pgClientOption = require("../config/pgClient")
@@ -228,4 +232,5 @@ router.get("/all", authVerify, async (req, res) => {
     res.send(result)
 })
 
+>>>>>>> 30e0d3fa4388361ad2b8fc68f95fd79f7ea06ee2
 module.exports = router

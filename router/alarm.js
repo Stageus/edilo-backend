@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+const router = require("express").Router()
+
+module.exports = router
+=======
 const router = require("express").Router()
 const { Client } = require("pg")  
 const pgClientOption = require("../config/pgClient")
@@ -115,3 +120,4 @@ router.delete("/all", authVerify, async (req, res) => {
 module.exports = router
 
 // alarmindex 어떻게 가져오는지
+>>>>>>> 30e0d3fa4388361ad2b8fc68f95fd79f7ea06ee2
