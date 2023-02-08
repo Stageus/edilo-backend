@@ -4,24 +4,22 @@ const authVerify = async (req, res, next) => {
 
     const result = {
         "success": false,
-        "message": null,
-        "authCheck": false
+        "message": null
     }
 
     const authToken = req.cookies.token
 
     try {
 
-        if (authToken = undefined) { // 존재하지 않는 토큰 예외
-            throw new Error({
-                "message": "토큰이 존재하지 않습니다."
-            })
+        if (authToken == undefined) { // 존재하지 않는 토큰 예외
+            throw new Error("토큰이 존재하지 않습니다.")
         }
 
-        req.decoded = jwt.verify(token, process.env.jwtSecretKey)            
+        req.decoded = jwt.verify(authToken, process.env.jwtSecretKey)
+        result.success = true      
         return next()
 
-    } catch {
+    } catch (err){
         // 유효하지 않는 토큰 예외
         result.message = err.message
         return res.send(result)
