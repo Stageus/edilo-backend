@@ -24,4 +24,3 @@ app.use("/comment", commentApi)
 app.listen(port, () => {
     console.log(`${port} 번에서 웹 서버가 실행됨`)
 })
-
