@@ -172,13 +172,13 @@ router.delete("/", authVerify, async (req, res) => {
         await client.connect()
         
         const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1 AND userId=$2;' 
-        const blockSql = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
+        // const blockSql = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
 
         const values = [scheduleIndex, userId]
-        const blockValues = [scheduleIndex]
+        // const blockValues = [scheduleIndex]
 
         client.query(sql, values)
-        client.query(blockSql, blockValues)
+        // client.query(blockSql, blockValues)
 
         result.success = true
         result.message = "일정 삭제완료"
