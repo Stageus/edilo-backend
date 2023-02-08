@@ -2,11 +2,11 @@ const router = require("express").Router()
 const { Client } = require("pg")
 const pgClientOption = require("../config/pgClient.js")
 const authVerify = require("../module/verify")
-// const imageUploader = require("../module/uploadPostImg")
+const imageUploader = require("../module/uploadPostImg")
 
 const elastic = require("elasticsearch")
 
-// 전체 게시글 불러오기 api > database \"eodilodb\" does not exist
+// 전체 게시글 불러오기 api
 router.get("/all", authVerify, async (req, res) => {  
 
     const postCategory = req.query.postCategory
@@ -26,7 +26,8 @@ router.get("/all", authVerify, async (req, res) => {
 
         let row = null
         
-        if (postCategory == null || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
+        if (postCategory == '' || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
+
             const sql = 'SELECT * FROM eodilo.post;'
 
             const data = await client.query(sql)
@@ -34,6 +35,8 @@ router.get("/all", authVerify, async (req, res) => {
             row = data.rows
         
         } else {    // 카테고리가 존재할 때
+                    // typeOf(category) = int
+                    // 1.정보 2.리뷰 3.질문 4.여행기
             const sql = 'SELECT * FROM eodilo.post WHERE postCategory=$1;'
             const values = [postCategory]
 
@@ -56,7 +59,65 @@ router.get("/all", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 내 게시글 불러오기 
+// 게시글 검색 api
+router.get("/search", authVerify, async (req, res) => {
+
+    const postCategory = req.query.postCategory
+    const searchKeyword = req.query.searchKeyword
+
+    const result = {
+        "success": false,
+        "message": "",
+        "data": []
+    }
+    
+    let client = null
+
+    try {
+
+        client = new Client(pgClientOption)
+        await client.connect() 
+        
+        let row = null
+
+        if (searchKeyword == '' || searchKeyword == undefined) {    // 검색 빈값 예외처리
+            throw new Error("내용을 입력해 주세요")
+        }
+
+        if (postCategory == '' || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
+            
+            const sql = 'SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1;'
+ 
+            const values = [`%${searchKeyword}%`]
+    
+            const data = await client.query(sql, values)
+    
+            row = data.rows
+        } else {    // 카테고리 존재할 때
+            const sql = 'SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1 AND postCategory=$2;'
+
+            const values = [`%${searchKeyword}%`, postCategory]
+            
+            const data = await client.query(sql, values)
+
+            row = data.rows
+        }
+
+        if (row.length > 0) {
+            result.data.push(row)
+        } else {
+            result.message = '관련된 게시글이 존재하지 않습니다.'
+        }
+
+        result.success = true
+    } catch(err) { 
+        result.message = err.message
+    }
+    client.end()
+    res.send(result)
+})
+
+// 내 게시글 불러오기 api
 router.get("/my/all", authVerify, async (req, res) => {  
 
     const userIndex = req.decoded.userIndex
@@ -93,7 +154,7 @@ router.get("/my/all", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 상세 게시글 불러오기 api 댓글과 좋아요
+// 상세 게시글 불러오기 api 좋아요, 스크랩 수
 router.get("/", authVerify, async (req, res) => {    
 
     const postIndex = req.query.postIndex
@@ -142,7 +203,6 @@ router.get("/", authVerify, async (req, res) => {
 })
 
 // 게시글 작성 api 이미지 업로드
-//
 router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
@@ -150,8 +210,9 @@ router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) =
     const postContent = req.body.postContent
     const scheduleIndex = req.body.scheduleIndex
     const postCategory = req.body.postCategory
-    const cityName = req.boIdy.cityName
-    const cityCategory = req.body.cityCategory
+    const cityIndex = req.body.cityIndex
+    const userIndex = req.decoded.userIndex
+    
     let urlArr = []
 
     const result = {
@@ -199,12 +260,26 @@ router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) =
         client = new Client(pgClientOption)
         
         await client.connect()
+
+        // 여행기 작성일 때 (스케줄 필수)
+        if (postCategory == 4) { // postcategory 4는 여행기
+
+            if (scheduleIndex == '' || scheduleIndex == undefined) {
+                throw new Error("여행기는 일정을 반드시 첨부해야 합니다.")
+            }
+
+            const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityIndex, postImgUrl, userIndex, scheduleIndex) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
+            
+            const values = [postWriter, postTitle, postContent, postCategory, cityIndex, jsonUrl, userIndex, scheduleIndex]
+            
+            await client.query(sql, values)
+        } else {
+            const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityIndex, postImgUrl, userIndex, scheduleIndex) VALUES ($1, $2, $3, $4, $5, $6, $7);'
         
-        const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityCategory, cityName, postImgUrl) VALUES ($1, $2, $3, $4, $5, $6, $7);'
-        
-        const values = [postWriter, postTitle, postContent, postCategory, cityCategory, cityName, jsonUrl]
-        
-        await client.query(sql, values)
+            const values = [postWriter, postTitle, postContent, postCategory, cityIndex, jsonUrl, userIndex]
+            
+            await client.query(sql, values)
+        }
 
         result.success = true
         result.message = "작성 완료"
@@ -287,20 +362,20 @@ router.delete("/", authVerify, async (req, res) => {
 
         if (postRow.length > 0) {   // 게시글 존재하지 않을 때 예외처리
             
-            const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;' 
-            const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
-            const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
-            const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
+            const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;'  // ON DELETE CASCADE로 게시글 삭제하면 댓글, 좋아요, 스크랩 모두 삭제
+            // const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
+            // const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
+            // const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
     
             const values = [postIndex, userIndex]
-            const commentValues = [postIndex]
-            const likeValues = [postIndex]
-            const scrapValues = [postIndex]
+            // const commentValues = [postIndex]
+            // const likeValues = [postIndex]
+            // const scrapValues = [postIndex]
     
             client.query(sql, values)
-            client.query(commentSql, commentValues)
-            client.query(likeSql, likeValues)
-            client.query(scrapSql, scrapValues)
+            // client.query(commentSql, commentValues)
+            // client.query(likeSql, likeValues)
+            // client.query(scrapSql, scrapValues)
     
             result.success = true
             result.message = "게시글 삭제완료"
