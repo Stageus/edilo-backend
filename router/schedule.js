@@ -36,9 +36,12 @@ router.get("/", authVerify, async (req, res) => {
 
         const scheduleRow = scheduleData.rows
         const scheduleBlockRow = scheduleBlockData.rows
-        // let cityLat = row[0].cityLat
-        // let cityLon = row[0].cityLon
+
+        let cityLat = scheduleRow[0].citycoordinatex
+        let cityLon = scheduleRow[0].citycoordinatey
         
+        result.weatherData = await weatherApi(cityLat, cityLon)
+
         if (scheduleRow.length > 0 && scheduleBlockRow.legnth > 0) {
             result.scheduleData.push(scheduleRow)
             result.scheduleBlockData.push(scheduleBlockRow)
@@ -186,7 +189,7 @@ router.delete("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 일정 목록 불러오기 api > 마이페이지에서 내 일정 수, 헤더에서 내 일정 리스트
+// 일정 목록 불러오기 api > 마이페이지에서 내 일정 수, 헤더에서 내 일정 리스트, 게시글 작성 시 리스트 불러오기
 router.get("/all", authVerify, async (req, res) => {
 
     const userIndex = req.decoded.userIndex
