@@ -69,6 +69,7 @@ router.get("/search", authVerify, async (req, res) => {
 
     const postCategory = req.query.postCategory
     const searchKeyword = req.query.searchKeyword
+    const postPage = req.query.postPage - 1
 
     const result = {
         "success": false,
@@ -89,9 +90,13 @@ router.get("/search", authVerify, async (req, res) => {
             throw new Error("내용을 입력해 주세요")
         }
 
+        if (postPage < 0) {    // offset negative 예외처리
+            throw new Error("페이지가 잘못되었습니다.")
+        }
+
         if (postCategory == '' || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
             
-            const sql = 'SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1;'
+            const sql = `SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1 ORDER BY date DESC LIMIT 10 OFFSET 10*${postPage};`
  
             const values = [`%${searchKeyword}%`]
     
@@ -99,7 +104,7 @@ router.get("/search", authVerify, async (req, res) => {
     
             row = data.rows
         } else {    // 카테고리 존재할 때
-            const sql = 'SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1 AND postCategory=$2;'
+            const sql = `SELECT * FROM eodilo.post WHERE postTitle LIKE $1 OR postContent LIKE $1 AND postCategory=$2 ORDER BY date DESC LIMIT 10 OFFSET 10*${postPage};`
 
             const values = [`%${searchKeyword}%`, postCategory]
             
@@ -126,6 +131,7 @@ router.get("/search", authVerify, async (req, res) => {
 router.get("/my/all", authVerify, async (req, res) => {  
 
     const userIndex = req.decoded.userIndex
+    const postPage = req.query.postPage - 1
 
     const result = {
         "success": false,
@@ -139,8 +145,12 @@ router.get("/my/all", authVerify, async (req, res) => {
     
         client = new Client(pgClientOption)
         await client.connect()
+
+        if (postPage < 0) {    // offset negative 예외처리
+            throw new Error("페이지가 잘못되었습니다.")
+        }
         
-        const sql = 'SELECT * FROM eodilo.post WHERE userIndex=$1;' // 해당 유저 게시글 select
+        const sql = `SELECT * FROM eodilo.post WHERE userIndex=$1 ORDER BY date DESC LIMIT 10 OFFSET 10*${postPage};` // 해당 유저 게시글 select
         const values = [userIndex]
 
         const data = await client.query(sql, values)
