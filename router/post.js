@@ -3,6 +3,7 @@ const { Client } = require("pg")
 const pgClientOption = require("../config/pgClient.js")
 const authVerify = require("../module/verify")
 const imageUploader = require("../module/uploadPostImg")
+const deletePostImg = require("../module/deletePostImg")
 
 const elastic = require("elasticsearch")
 
@@ -226,7 +227,7 @@ router.get("/", authVerify, async (req, res) => {
 })
 
 // 게시글 작성 api 이미지 업로드
-router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) => {        
+router.post("/", authVerify, imageUploader.array('imgValue', 5), async (req, res) => {        
     
     const postWriter = req.decoded.userNickname
     const postTitle = req.body.postTitle
@@ -257,9 +258,9 @@ router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) =
         if (postCategory == '' || postCategory == undefined) {    // 글유형 빈값 예외처리
             throw new Error("글유형을 선택해주세요")
         }
-        if (cityCategory == '' || cityCategory == undefined || cityName == '' || cityName == undefined) {    // 도시 유형 빈값 예외처리
-            throw new Error("도시 이름 혹은 도시 유형을 선택해주세요")
-        }
+        // if (cityCategory == '' || cityCategory == undefined || cityName == '' || cityName == undefined) {    // 도시 유형 빈값 예외처리
+        //     throw new Error("도시 이름 혹은 도시 유형을 선택해주세요")
+        // }
 
         // ==================== 길이 예외처리
         if (postTitle.legnth > 100) {    // 제목 길이 예외처리
@@ -279,14 +280,13 @@ router.post("/", authVerify, imageUploader.array('image', 5), async (req, res) =
             urlArr.push(`/img/${req.files[i].location}`);
         }
         let jsonUrl = JSON.stringify(urlArr);
-        
+        console.log(urlArr)
         client = new Client(pgClientOption)
         
         await client.connect()
 
         // 여행기 작성일 때 (스케줄 필수)
         if (postCategory == 4) { // postcategory 4는 여행기
-
             if (scheduleIndex == '' || scheduleIndex == undefined) {
                 throw new Error("여행기는 일정을 반드시 첨부해야 합니다.")
             }
@@ -371,7 +371,7 @@ router.delete("/", authVerify, async (req, res) => {
     }
 
     let client = null
-
+    let postImgUrl
     try {
 
         client = new Client(pgClientOption)
@@ -383,22 +383,20 @@ router.delete("/", authVerify, async (req, res) => {
         const postData = await client.query(postSql, postValues) // 게시글 가져오기
         const postRow = postData.rows
 
-        if (postRow.length > 0) {   // 게시글 존재하지 않을 때 예외처리
+        postImgUrl = postRow[0].postimgurl // 삭제할 이미지 url
+
+        if (postRow.length > 0) {
             
             const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;'  // ON DELETE CASCADE로 게시글 삭제하면 댓글, 좋아요, 스크랩 모두 삭제
-            // const commentSql = 'DELETE FROM eodilo.comment WHERE postIndex=$1;' 
-            // const likeSql = 'DELETE FROM eodilo.like WHERE postIndex=$1;' 
-            // const scrapSql = 'DELETE FROM eodilo.scrap WHERE postIndex=$1;' 
-    
+
             const values = [postIndex, userIndex]
-            // const commentValues = [postIndex]
-            // const likeValues = [postIndex]
-            // const scrapValues = [postIndex]
-    
+
             client.query(sql, values)
-            // client.query(commentSql, commentValues)
-            // client.query(likeSql, likeValues)
-            // client.query(scrapSql, scrapValues)
+
+            // if (postImgUrl != undefined || postImgUrl != null) {
+            //     deletePostImg(postImgUrl) // 이미지 삭제 모듈 완성
+            // }
+            
     
             result.success = true
             result.message = "게시글 삭제완료"
