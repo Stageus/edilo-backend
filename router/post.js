@@ -10,6 +10,7 @@ const elastic = require("elasticsearch")
 router.get("/all", authVerify, async (req, res) => {  
 
     const postCategory = req.query.postCategory
+    const postPage = req.query.postPage - 1
 
     const result = {
         "success": false,
@@ -25,10 +26,14 @@ router.get("/all", authVerify, async (req, res) => {
         await client.connect() // await 붙여주는
 
         let row = null
+
+        if (postPage < 0) {    // offset negative 예외처리
+            throw new Error("페이지가 잘못되었습니다.")
+        }
         
         if (postCategory == '' || postCategory == undefined) {    // 카테고리가 없을 때 (전체 게시글)
 
-            const sql = 'SELECT * FROM eodilo.post;'
+            const sql = `SELECT * FROM eodilo.post ORDER BY date DESC LIMIT 10 OFFSET 10*${postPage};`
 
             const data = await client.query(sql)
             
@@ -37,7 +42,7 @@ router.get("/all", authVerify, async (req, res) => {
         } else {    // 카테고리가 존재할 때
                     // typeOf(category) = int
                     // 1.정보 2.리뷰 3.질문 4.여행기
-            const sql = 'SELECT * FROM eodilo.post WHERE postCategory=$1;'
+            const sql = `SELECT * FROM eodilo.post WHERE postCategory=$1 ORDER BY date DESC LIMIT 10 OFFSET 10*${postPage};`
             const values = [postCategory]
 
             const data = await client.query(sql, values)
@@ -162,7 +167,7 @@ router.get("/", authVerify, async (req, res) => {
     const result = {
         "success": false,
         "message": null,
-        "postData": [],
+        "postData": null,
         "commentData": []
     }
 
@@ -187,13 +192,21 @@ router.get("/", authVerify, async (req, res) => {
         const commentRow = commentData.rows
         
         if (postRow.length > 0 && commentRow.legnth > 0) {
-            result.postData.push(postRow)
+            result.postData = postRow[0]
             result.commentData.push(commentRow)
         } else if (postRow.length > 0){ // 댓글 없을 때
-            result.postData.push(postRow)            
+            result.postData = postRow[0]
         } else {
             result.message = '해당 게시글이 존재하지 않습니다.'
         }
+        
+        if (result.postData != null) { // 조회수 증가
+            
+            const postViews = result.postData.postviews
+            
+            await client.query('UPDATE eodilo.post SET postViews=$1 WHERE postIndex=$2;', [postViews + 1, postIndex])
+        }
+
         result.success = true
     } catch(err) { 
         result.message = err.message
