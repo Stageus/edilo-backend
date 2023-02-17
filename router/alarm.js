@@ -12,6 +12,7 @@ const authVerify = require("../module/verify")
 // 알림 불러오기 api
 router.get("/all", authVerify, async (req, res) => {  
 
+    const alarmPage = req.query.alarmPage
     const userIndex = req.decoded.userIndex
 
     const result = {
@@ -19,7 +20,7 @@ router.get("/all", authVerify, async (req, res) => {
         "message": null,
         "data": []
     }
-
+    
     let client = null
 
     try {
@@ -27,8 +28,8 @@ router.get("/all", authVerify, async (req, res) => {
         client = new Client(pgClientOption)
 
         await client.connect()
-    
-        const sql = 'SELECT * FROM eodilo.alarm WHERE userIndex=$1;' // 해당 닉네임의 알람 전부 select
+        
+        const sql = `SELECT * FROM eodilo.alarm WHERE userIndex=$1 ORDER BY date DESC LIMIT 10 OFFSET 10*${alarmPage};` // 해당 닉네임의 알람 전부 select
         const values = [userIndex]
 
         const data = await client.query(sql, values)

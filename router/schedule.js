@@ -8,7 +8,7 @@ const pgClientOption = require("../config/pgClient")
 const authVerify = require("../module/verify")
 const weatherApi = require("../pm2/weather")
 
-// 일정 불러오기 api > 날씨 api 사용해서 날짜 정보 주기
+// 일정 불러오기 api
 router.get("/", authVerify, async (req, res) => {
 
     const scheduleIndex = req.query.scheduleIndex
@@ -16,7 +16,7 @@ router.get("/", authVerify, async (req, res) => {
     const result = {
         "success": false,
         "message": null,
-        "scheduleData": [],
+        "scheduleData": null,
         "scheduleBlockData": [],
         "weatherData": null
     }
@@ -30,7 +30,7 @@ router.get("/", authVerify, async (req, res) => {
         await client.connect()  
         
         const scheduleSql = 'SELECT * FROM eodilo.schedule WHERE scheduleIndex=$1;' // 해당 스케줄 가져오기
-        const scheduleBlockSql = "SELECT * FROM eodilo.scheduleblock WHERE scheduleIndex=$1;" // 해당 스케줄 블록 가져오기
+        const scheduleBlockSql = "SELECT * FROM eodilo.scheduleblock WHERE scheduleIndex=$1 ORDER BY blockOrder ASC;" // 해당 스케줄 블록 가져오기
 
         const scheduleValues = [scheduleIndex]
         const scheduleBlockValues = [scheduleIndex]
@@ -41,20 +41,37 @@ router.get("/", authVerify, async (req, res) => {
         const scheduleRow = scheduleData.rows
         const scheduleBlockRow = scheduleBlockData.rows
 
-        let cityLat = scheduleRow[0].citycoordinatex
-        let cityLon = scheduleRow[0].citycoordinatey
-        
-        result.weatherData = await weatherApi(cityLat, cityLon)
-
         if (scheduleRow.length > 0 && scheduleBlockRow.legnth > 0) {
-            result.scheduleData.push(scheduleRow)
+            result.scheduleData = scheduleRow[0]
             result.scheduleBlockData.push(scheduleBlockRow)
+
+            // 날씨정보
+            const cityIndex = scheduleRow[0].cityindex
+            const weatherSql = "SELECT cityTemperature FROM eodilo.city WHERE scheduleIndex=$1;" // 해당 스케줄 날씨 가져오기 city 인덱스 넣기
+            const weatherValues = [cityIndex]
+
+            const weatherData = await client.query(weatherSql, weatherValues)
+
+            const weatherRow = weatherData.rows
+
+            result.weatherData.push(weatherRow[0])
+
         } else if (scheduleRow.length > 0){ // 스케줄 블록이 없을 때
-            result.scheduleData.push(scheduleRow)            
+            result.scheduleData = scheduleRow[0]
+
+            // 날씨정보
+            const cityIndex = scheduleRow[0].cityindex
+            const weatherSql = "SELECT cityTemperature FROM eodilo.city WHERE scheduleIndex=$1;" // 해당 스케줄 날씨 가져오기 city 인덱스 넣기
+            const weatherValues = [cityIndex]
+
+            const weatherData = await client.query(weatherSql, weatherValues)
+
+            const weatherRow = weatherData.rows
+
+            result.weatherData.push(weatherRow[0])
         } else {
             result.message = '일정이 존재하지 않습니다.'
         }
-        console.log(result)
         result.success = true
     } catch(err) { 
         result.message = err.message
@@ -63,13 +80,15 @@ router.get("/", authVerify, async (req, res) => {
     res.send(result)
 })
 
-// 일정 업로드 api 
+// 일정 업로드 api 처음 저장버튼 누를 때 생성 아 이걸 어떻게 해야하지 진짜 1. 처음 넣을때 스케줄index없음 2.스케줄블록 insert와 update 차이
 router.post("/", authVerify, async (req, res) => {
 
     const scheduleDate = req.body.scheduleDate
     const scheduleName = req.body.scheduleName
     const userIndex = req.decoded.userIndex
     const cityIndex = req.body.cityIndex
+    
+    let scheduleBlockList = req.body.scheduleBlockList
 
     const result = {
         "success": false,
@@ -84,6 +103,9 @@ router.post("/", authVerify, async (req, res) => {
         if (scheduleName == '' || scheduleName == undefined) {
             throw new Error("일정 제목을 입력해주세요")
         }
+        if (scheduleDate == '' || scheduleDate == undefined) {
+            throw new Error("일정 날짜를 선택해주세요")
+        }
 
         // ==================== 길이 예외처리
         if (scheduleName.legnth > 20) {    // 제목 길이 예외처리
@@ -94,10 +116,24 @@ router.post("/", authVerify, async (req, res) => {
 
         await client.connect()
 
-        const sql = 'INSERT INTO eodilo.schedule (scheduleDate, scheduleName, cityIndex, userIndex) VALUES ($1, $2, $3, $4);'
+        // 인덱스 있으면 스케줄 업데이트, 스케줄블록은 업데이트나 인서트, 프론트에서 받은 값중에 존재하지 않는 스케줄 블록 인덱스가 있다면 딜리트
+        const sql = 'INSERT INTO eodilo.schedule (scheduleDate, scheduleName, cityIndex, userIndex) VALUES ($1, $2, $3, $4) RETURNING scheduleIndex;'
         const values = [scheduleDate, scheduleName, cityIndex, userIndex]
         
-        await client.query(sql, values)
+        const ScheduleIndexData = await client.query(sql, values)
+
+        const ScheduleIndex = ScheduleIndexData.rows
+
+        if (scheduleBlockList != undefined) { 
+            for (let i = 0; i < scheduleBlockList.length; i++) { // 블록 개수만큼
+
+                let blockSql = 'INSERT INTO eodilo.scheduleblock (blockOrder, blockName, blockCategory, blockTime, blockcost, scheduleIndex, blockcoordinatex, blockcoordinatey) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
+
+                let blockValues = [scheduleBlockList[i].blockOrder, scheduleBlockList[i].blockName, scheduleBlockList[i].blockCategory, scheduleBlockList[i].blockTime, scheduleBlockList[i].blockcost, ScheduleIndex[0].scheduleindex, scheduleBlockList[i].blockcoordinatex, scheduleBlockList[i].blockcoordinatey]                
+
+                await client.query(blockSql, blockValues)
+            }
+        }
 
         result.success = true
         result.message = "일정 업로드 성공"
@@ -114,7 +150,9 @@ router.put("/", authVerify, async (req, res) => {
     const scheduleIndex = req.body.scheduleIndex
     const scheduleName = req.body.scheduleName // 일정 제목 수정
     const scheduleDate = req.body.scheduleDate
+    const userIndex = req.decoded.userIndex
 
+    let scheduleBlockList = req.body.scheduleBlockList
 
     const result = {
         "success": false,
@@ -129,7 +167,6 @@ router.put("/", authVerify, async (req, res) => {
         if (scheduleName == '' || scheduleName == undefined) {
             throw new Error("일정 제목을 입력해주세요")
         }
-
         // ==================== 길이 예외처리
         if (scheduleName.legnth > 20) {    // 제목 길이 예외처리
             throw new Error("일정 제목을 20자 이하로 입력해주세요")
@@ -138,13 +175,60 @@ router.put("/", authVerify, async (req, res) => {
         client = new Client(pgClientOption)
 
         await client.connect()
+        // 스케줄 수정
+        const sql = 'UPDATE eodilo.schedule SET scheduleDate=$1, scheduleName=$2 WHERE scheduleIndex=$3 AND userIndex=$4;'
+        const values = [scheduleDate, scheduleName, scheduleIndex, userIndex]
+
+        // 기존 블록 삭제
+        await client.query('DELETE FROM eodilo.scheduleblock WHERE scheduleIndex=$1;', [scheduleIndex])
+
+        // 블록 추가
+        if (scheduleBlockList != undefined) { 
+            for (let i = 0; i < scheduleBlockList.length; i++) { // 블록 개수만큼
+
+                let blockSql = 'INSERT INTO eodilo.scheduleblock (blockOrder, blockName, blockCategory, blockTime, blockcost, scheduleIndex, blockcoordinatex, blockcoordinatey) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
+
+                let blockValues = [scheduleBlockList[i].blockOrder, scheduleBlockList[i].blockName, scheduleBlockList[i].blockCategory, scheduleBlockList[i].blockTime, scheduleBlockList[i].blockcost, scheduleIndex, scheduleBlockList[i].blockcoordinatex, scheduleBlockList[i].blockcoordinatey]                
+
+                await client.query(blockSql, blockValues)
+            }
+        }
+
+        // // 삭제된 블록 
+        // const deleteBlockData = await client.query('SELECT blockIndex FROM eodilo.scheduleblock WHERE scheduleIndex=$1;', [scheduleIndex])
+        // const deleteBlockRow = deleteBlockData.rows
         
-        const sql = 'UPDATE  eodilo.schedule scheduleDate=$1, scheduleName=$2 WHERE scheduleIndex=$3;'
-        const values = [scheduleDate, scheduleName, scheduleIndex]
+        // 스케줄 블록 수정
+        // if (scheduleBlockList != undefined) { 
+        //     for (let i = 0; i < scheduleBlockList.length; i++) { // 블록 개수만큼
+        //         let blockSql
+        //         let blockValues
+        //         if (scheduleBlockList[i].blockIndex) { // 기존에 있던 블록
+        //             if (deleteBlockRow != undefined && deleteBlockRow != null) {
+        //                 for (let index = 0; index < deleteBlockRow.length; index++) {
+        //                     if (deleteBlockRow[index].blockindex == scheduleBlockList[i].blockIndex) {
+        //                         deleteBlockRow.splice(index, 1)
+        //                         break
+        //                     }
+        //                 }
+        //                 for (let index = 0; index < deleteBlockRow.length; index++) {
+        //                     await client.query('DELETE FROM eodilo.scheduleblock WHERE blockindex=$1', [deleteBlockRow[index].blockindex])
+        //                 }
+        //             }
+        //             blockSql = 'UPDATE eodilo.scheduleblock SET blockOrder=$1, blockName=$2, blockCategory=$3, blockTime=$4, blockcost=$5, blockcoordinatex=$6, blockcoordinatey=$7 WHERE blockIndex=$8'
+        //             blockValues = [scheduleBlockList[i].blockOrder, scheduleBlockList[i].blockName, scheduleBlockList[i].blockCategory, scheduleBlockList[i].blockTime, scheduleBlockList[i].blockcost, scheduleBlockList[i].blockcoordinatex, scheduleBlockList[i].blockcoordinatey, scheduleBlockList[i].blockIndex]
+        //         } else { // 기존에 없던 블록
+        //             blockSql = 'INSERT INTO eodilo.scheduleblock (blockOrder, blockName, blockCategory, blockTime, blockcost, scheduleIndex, blockcoordinatex, blockcoordinatey) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
+        //             blockValues = [scheduleBlockList[i].blockOrder, scheduleBlockList[i].blockName, scheduleBlockList[i].blockCategory, scheduleBlockList[i].blockTime, scheduleBlockList[i].blockcost, scheduleIndex, scheduleBlockList[i].blockcoordinatex, scheduleBlockList[i].blockcoordinatey]       
+        //         }
+        
+        //         await client.query(blockSql, blockValues)
+        //     }
+        // }
         
         await client.query(sql, values)
-
         result.success = true
+        result.message = "수정 완료"
     } catch(err) { 
         result.message = err.message
     }
@@ -156,7 +240,7 @@ router.put("/", authVerify, async (req, res) => {
 router.delete("/", authVerify, async (req, res) => {
 
     const scheduleIndex = req.body.scheduleIndex
-    const userId = req.decoded.userId
+    const userIndex = req.decoded.userIndex
 
     const result = {
         "success": false,
@@ -175,10 +259,10 @@ router.delete("/", authVerify, async (req, res) => {
 
         await client.connect()
         
-        const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1 AND userId=$2;' 
+        const sql = 'DELETE FROM eodilo.schedule WHERE scheduleIndex=$1 AND userIndex=$2;' 
         // const blockSql = 'DELETE FROM eodilo.scheduleBlock WHERE scheduleIndex=$1;' 
 
-        const values = [scheduleIndex, userId]
+        const values = [scheduleIndex, userIndex]
         // const blockValues = [scheduleIndex]
 
         client.query(sql, values)
