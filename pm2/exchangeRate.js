@@ -35,4 +35,4 @@ const updateExchangeRate = request(options, async (err, res, body) => {
     if(client) client.end()
 })
 
-setTimeout(() => {setInterval(()=>{updateExchangeRate}, 1000 * 60 * 60 * 24)}, waitHours + waitMinutes)
+setTimeout(() => {setInterval(updateExchangeRate, 1000 * 60 * 60 * 24)}, waitHours + waitMinutes)
