@@ -8,7 +8,7 @@ const deletePostImg = require("../module/deletePostImg")
 const elastic = require("elasticsearch")
 
 // 전체 게시글 불러오기 api
-router.get("/all", authVerify, async (req, res) => {  
+router.get("/all", async (req, res) => {  
 
     const postCategory = req.query.postCategory
     const postPage = req.query.postPage - 1
