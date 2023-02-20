@@ -295,7 +295,7 @@ router.get("/all", authVerify, async (req, res) => {
 
         await client.connect()
 
-        const sql = 'SELECT * FROM eodilo.schedule WHERE userIndex=$1'
+        const sql = 'SELECT * FROM eodilo.schedule WHERE userIndex=$1 ORDER BY scheduledate ASC'
         
         const values = [userIndex]
 
