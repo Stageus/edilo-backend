@@ -65,7 +65,7 @@ router.get("/search", async (req, res) => {     //지역 태그 검색 api
         }
         let data = []
         for(var i=0; i<row.rows.length; i++) {
-            data[i] = row.rows[i].cityname
+            data[i] = {"cityName": row.rows[i].cityname, "cityCountry": row.rows[0].citycountry}
         }
         result.cityName = data
         result.success = true
@@ -117,7 +117,7 @@ router.get("/info", async (req, res) => {   //선택한 여행지 정보 api
 
 router.get("/all", async (req, res) => {    //여행지 목록 api
     const cityKeyword = req.query.cityKeyword
-    const cityTagSql = "SELECT * FROM eodilo.city WHERE cityCategory LIKE $1 OR cityCountry LIKE $1 OR cityName LIKE $1"
+    const cityTagSql = "SELECT * FROM eodilo.city"
     const values =["%" + cityKeyword + "%"]
     let client
 
@@ -128,18 +128,19 @@ router.get("/all", async (req, res) => {    //여행지 목록 api
     }
 
     try {
-        if(cityKeyword == undefined || cityKeyword.length == 0) {
-            throw new Error("잘못된 키워드값")
-        }
+        // if(cityKeyword == undefined || cityKeyword.length == 0) {
+        //     throw new Error("잘못된 키워드값")
+        // }
         client = new Client(pgClient)
         await client.connect()
-        const row = await client.query(cityTagSql, values)
+        const row = await client.query(cityTagSql)
         if(row.rows.length == 0) {
             throw new Error("해당 키워드를 가진 데이터가 없음")
         }
         let data = []
         for(var i=0; i<row.rows.length; i++) {
-            data[i] = row.rows[i].cityindex
+            data[i] = {"cityIndex": row.rows[i].cityindex, "cityName": row.rows[i].cityname, "cityEnglishName": row.rows[i].cityenglishname, 
+        "cityImgUrl": row.rows[i].cityimgurl}
         }
         result.cityIndex = data
         result.success = true

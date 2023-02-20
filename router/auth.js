@@ -32,7 +32,7 @@ router.post("/email/signUp", async (req, res) => {  //이메일 인증번호 발
         }
         const randNum = Math.random().toString().substr(2,6)
         const authNum = await bcrypt.hash(randNum, 10)
-        res.cookie("authNum", authNum, {maxAge: 1000*60*3})
+        res.cookie("authNum", authNum, {maxAge: 1000*60*3, sameSite: "none", secure: true})
         const mailOptions = {
             from: process.env.emailAddress,
             to: userEmail,
@@ -99,7 +99,7 @@ router.post("/email/findId", async (req, res) => {  //아이디 찾기 인증번
         }
         const randNum = Math.random().toString().substr(2,6)
         const authNum = await bcrypt.hash(randNum, 10)
-        res.cookie("authInfo", {"authNum": authNum, "userEmail": userEmail}, {maxAge: 1000*60*3})
+        res.cookie("authInfo", {"authNum": authNum, "userEmail": userEmail}, {maxAge: 1000*60*3, sameSite: "none", secure: true})
         const mailOptions = {
             from: process.env.emailAddress,
             to: userEmail,
@@ -177,7 +177,7 @@ router.post("/email/findPw", async (req, res) => {  //비밀번호 찾기 인증
         }
         const randNum = Math.random().toString().substr(2,6)
         const authNum = await bcrypt.hash(randNum, 10)
-        res.cookie("authNum", authNum, {maxAge: 1000*60*3})
+        res.cookie("authNum", authNum, {maxAge: 1000*60*3, sameSite: "none", secure: true})
         const mailOptions = {
             from: process.env.emailAddress,
             to: userEmail,
