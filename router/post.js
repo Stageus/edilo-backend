@@ -277,10 +277,10 @@ router.post("/", authVerify, imageUploader.array('imgValue', 5), async (req, res
         }
 
         for (let i = 0; i < req.files.length; i++) {
-            urlArr.push(`/img/${req.files[i].location}`);
+            urlArr.push(`${req.files[i].location}`)
         }
         let jsonUrl = JSON.stringify(urlArr);
-        console.log(urlArr)
+        
         client = new Client(pgClientOption)
         
         await client.connect()
@@ -290,15 +290,15 @@ router.post("/", authVerify, imageUploader.array('imgValue', 5), async (req, res
             if (scheduleIndex == '' || scheduleIndex == undefined) {
                 throw new Error("여행기는 일정을 반드시 첨부해야 합니다.")
             }
-
+            
             const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityIndex, postImgUrl, userIndex, scheduleIndex) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);'
             
             const values = [postWriter, postTitle, postContent, postCategory, cityIndex, jsonUrl, userIndex, scheduleIndex]
             
             await client.query(sql, values)
         } else {
-            const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityIndex, postImgUrl, userIndex, scheduleIndex) VALUES ($1, $2, $3, $4, $5, $6, $7);'
-        
+            const sql = 'INSERT INTO eodilo.post (postWriter, postTitle, postContent, postCategory, cityIndex, postImgUrl, userIndex) VALUES ($1, $2, $3, $4, $5, $6, $7);'
+            
             const values = [postWriter, postTitle, postContent, postCategory, cityIndex, jsonUrl, userIndex]
             
             await client.query(sql, values)
@@ -371,7 +371,8 @@ router.delete("/", authVerify, async (req, res) => {
     }
 
     let client = null
-    let postImgUrl
+    let deletePostImgUrl = null // 삭제할 이미지 url
+
     try {
 
         client = new Client(pgClientOption)
@@ -383,20 +384,23 @@ router.delete("/", authVerify, async (req, res) => {
         const postData = await client.query(postSql, postValues) // 게시글 가져오기
         const postRow = postData.rows
 
-        postImgUrl = postRow[0].postimgurl // 삭제할 이미지 url
-
         if (postRow.length > 0) {
-            
+            if (postRow[0].postimgurl != undefined || postRow[0].postimgurl != null) {
+                const urlArr = JSON.parse(postRow[0].postimgurl)
+
+                // deletePostImgUrl = urlArr[0]
+                // deletePostImg(deletePostImgUrl)
+
+                // for(let i = 0; i < urlArr.length; i++) {
+                //     deletePostImgUrl = urlArr[i]
+                //     console.log(deletePostImgUrl)
+                //     deletePostImg(deletePostImgUrl)
+                // }
+            }
+
             const sql = 'DELETE FROM eodilo.post WHERE postIndex=$1 AND userIndex=$2;'  // ON DELETE CASCADE로 게시글 삭제하면 댓글, 좋아요, 스크랩 모두 삭제
-
             const values = [postIndex, userIndex]
-
-            client.query(sql, values)
-
-            // if (postImgUrl != undefined || postImgUrl != null) {
-            //     deletePostImg(postImgUrl) // 이미지 삭제 모듈 완성
-            // }
-            
+            await client.query(sql, values)
     
             result.success = true
             result.message = "게시글 삭제완료"
