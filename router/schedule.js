@@ -83,6 +83,9 @@ router.post("/", authVerify, async (req, res) => {
     const scheduleName = req.body.scheduleName
     const userIndex = req.decoded.userIndex
     const cityIndex = req.body.cityIndex
+    const cityCategory = req.body.cityCategory
+    const cityCountry = req.body.cityCountry
+    const cityName = req.body.cityName
     
     let scheduleBlockList = req.body.scheduleBlockList
 
@@ -102,7 +105,7 @@ router.post("/", authVerify, async (req, res) => {
         if (scheduleDate == '' || scheduleDate == undefined) {
             throw new Error("일정 날짜를 선택해주세요")
         }
-
+        
         // ==================== 길이 예외처리
         if (scheduleName.legnth > 20) {    // 제목 길이 예외처리
             throw new Error("제목을 100자 이하로 입력해주세요")
@@ -113,8 +116,8 @@ router.post("/", authVerify, async (req, res) => {
         await client.connect()
 
         // 인덱스 있으면 스케줄 업데이트, 스케줄블록은 업데이트나 인서트, 프론트에서 받은 값중에 존재하지 않는 스케줄 블록 인덱스가 있다면 딜리트
-        const sql = 'INSERT INTO eodilo.schedule (scheduleDate, scheduleName, cityIndex, userIndex) VALUES ($1, $2, $3, $4) RETURNING scheduleIndex;'
-        const values = [scheduleDate, scheduleName, cityIndex, userIndex]
+        const sql = 'INSERT INTO eodilo.schedule (scheduleDate, scheduleName, cityIndex, userIndex, cityCategory, cityCountry, cityName) VALUES ($1, $2, $3, $4, $5, $6, %7) RETURNING scheduleIndex;'
+        const values = [scheduleDate, scheduleName, cityIndex, userIndex, cityCategory, cityCountry, cityName]
         
         const ScheduleIndexData = await client.query(sql, values)
 
