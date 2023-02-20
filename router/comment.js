@@ -6,7 +6,7 @@ const authVerify = require("../module/verify")
 // 댓글 작성 api
 router.post("/", authVerify, async (req, res) => {
 
-    const userIndex = req.decoded.userIndex
+    const userNickname = req.decoded.userNickname
     const postIndex = req.body.postIndex
     const commentContent = req.body.commentContent
 
@@ -30,9 +30,9 @@ router.post("/", authVerify, async (req, res) => {
         
         await client.connect()
         
-        const sql = 'INSERT INTO eodilo.comment (commentContent, userIndex, postIndex) VALUES ($1, $2, $3);'
+        const sql = 'INSERT INTO eodilo.comment (commentContent, userIndex, userNickname, postIndex) VALUES ($1, $2, $3, $4);'
         // sql2 = 'INSERT INTO eodilo.alarm (alarmIndex, postIndex, senderNickname, userIndex, alarmDate, alarmCategory) VALUES ($1, $2, $3, $4, $5, $6);' // 알림 sql
-        const values = [commentContent, userIndex, postIndex]
+        const values = [commentContent, userIndex, userNickname, postIndex]
 
         await client.query(sql, values)
 
